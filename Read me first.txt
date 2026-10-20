@@ -1,0 +1,45 @@
+SUNSCREEN
+
+From sunset, your screens lose their blue light and an external monitor
+dims. In the morning everything goes back to normal. Automatic, every day.
+
+INSTALL
+1. Drag Sunscreen into the Applications folder.
+2. Open Sunscreen from Applications.
+   macOS says it can't verify the app (it's not from the App Store).
+   Click "Done".
+3. Open System Settings > Privacy & Security, scroll down, and click
+   "Open Anyway" next to Sunscreen. Confirm with your password.
+   You only do this once.
+
+A small sun appears in the menu bar (a moon in the evening). That's it.
+It starts by itself when you log in.
+
+NEED A BREAK? (photo editing, a movie, anything)
+Press Control + Option + Command + P anywhere to pause for 1 hour.
+Press it again to switch it back on. Or click the sun/moon and pick
+"Pause for 15 minutes", "Pause for 1 hour" or "Pause for tonight".
+It switches back on by itself when the pause runs out.
+
+Click the sun or moon to open the panel. It shows where you are, the
+local time, today's sunrise and sunset, and when the filter turns on.
+There you can also:
+- pick the evening colour. "Sleep" (no blue, like anti-blue-light
+  glasses) is recommended. Or drag the slider.
+- pick how dim an external monitor gets in the evening (default 30%)
+- pick the daytime colour ("Daylight" is recommended)
+- click "Use exact location" for exact sunset times (by default your
+  Mac's time zone is used; macOS asks for permission once)
+- click the eye to preview the evening look for 10 seconds
+
+The colour filter works on any Mac. Dimming an external monitor needs a
+Mac with Apple Silicon (M1 or newer) and a monitor connected by USB-C or
+DisplayPort.
+
+UPDATES
+When there's a new version, a small dot appears on the sun and the
+panel says "Update available". Click Update and it installs itself.
+
+REMOVE
+Click the sun or moon > Quit Sunscreen, then drag Sunscreen from
+Applications to the Trash. Colours go back to normal immediately.

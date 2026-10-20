@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunscreen</title>
+<meta name="description" content="Your Mac follows the sun. No blue light in the evening, fully automatic.">
+<meta property="og:title" content="Sunscreen">
+<meta property="og:description" content="Your Mac follows the sun. No blue light in the evening, fully automatic.">
+<meta property="og:image" content="https://rmmarketingmcc.github.io/sunscreen/img/icon.png">
+<link rel="icon" href="img/favicon.png">
+<style>
+  :root {
+    --bg: #fbf6f0;
+    --ink: #221a3a;
+    --muted: #6a6280;
+    --card: #ffffff;
+    --line: rgba(34, 26, 58, 0.09);
+    --soft: rgba(34, 26, 58, 0.05);
+    --amber: #f39a4a;
+    --orange: #ee6a3c;
+    --rose: #b8506a;
+    --indigo: #2e2350;
+    --sky: #6fb3ff;
+    --shadow: 0 1px 2px rgba(34, 26, 58, 0.06), 0 8px 28px rgba(34, 26, 58, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141026;
+      --ink: #f4effc;
+      --muted: #a69fbd;
+      --card: #1f1937;
+      --line: rgba(255, 255, 255, 0.09);
+      --soft: rgba(255, 255, 255, 0.05);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141026; --ink: #f4effc; --muted: #a69fbd; --card: #1f1937;
+    --line: rgba(255, 255, 255, 0.09); --soft: rgba(255, 255, 255, 0.05);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--orange); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3 { font-family: ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; letter-spacing: -0.01em; }
+  h2 { font-size: 26px; margin: 0 0 6px; }
+  .lead { color: var(--muted); margin: 0 0 22px; }
+  section { padding: 44px 0 8px; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 26px 0 8px; }
+  .hero img.icon { width: 112px; height: 112px; filter: drop-shadow(0 10px 24px rgba(184, 80, 106, 0.35)); }
+  .hero h1 { font-size: 44px; margin: 10px 0 6px; }
+  .hero p.tag { font-size: 19px; max-width: 540px; margin: 0 auto 10px; }
+  .hero .meta { color: var(--muted); font-size: 14px; }
+  .phone-note {
+    display: none; margin: 18px auto 0; max-width: 520px; padding: 12px 16px; border-radius: 14px;
+    background: rgba(243, 154, 74, 0.14); color: var(--ink); font-size: 15px;
+  }
+  .is-phone .phone-note { display: block; }
+  .cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border: 0; cursor: pointer;
+    font: 600 15px/1 inherit; font-family: inherit; padding: 13px 20px; border-radius: 12px;
+  }
+  .btn.primary { color: #fff; background: linear-gradient(135deg, var(--amber), var(--orange)); box-shadow: 0 6px 18px rgba(238, 106, 60, 0.35); }
+  .btn.ghost { color: var(--ink); background: var(--soft); }
+
+  /* Before / after */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .shot { margin: 0; }
+  .shot figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; text-align: center; }
+  .screen {
+    position: relative; border-radius: 12px; overflow: hidden; background: #fff; aspect-ratio: 4 / 3;
+    box-shadow: var(--shadow); border: 1px solid var(--line);
+  }
+  .screen .bar { height: 9%; background: #eef0f4; display: flex; align-items: center; gap: 5px; padding: 0 8px; }
+  .screen .bar i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+  .screen .pic {
+    position: absolute; left: 6%; top: 15%; width: 50%; height: 48%; border-radius: 8px;
+    background: linear-gradient(180deg, #4c9bff 0%, #9fd0ff 62%, #3d8b4f 62%, #5fb36a 100%);
+  }
+  .screen .pic::after {
+    content: ""; position: absolute; width: 22%; aspect-ratio: 1; border-radius: 50%; background: #ffe066; right: 14%; top: 14%;
+  }
+  .screen .lines { position: absolute; left: 61%; right: 6%; top: 16%; display: grid; gap: 7px; }
+  .screen .lines span { height: 7px; border-radius: 4px; background: #c9cfdb; display: block; }
+  .screen .lines span:first-child { height: 11px; background: #2b3550; width: 80%; }
+  .screen .chips { position: absolute; left: 6%; right: 6%; bottom: 10%; display: flex; gap: 6%; }
+  .screen .chips span { flex: 1; height: 26px; border-radius: 7px; display: block; }
+  .screen.evening::after {
+    content: ""; position: absolute; inset: 0; background: rgb(255, 132, 0); mix-blend-mode: multiply; pointer-events: none;
+  }
+
+  /* Steps */
+  .steps { display: grid; gap: 14px; counter-reset: step; }
+  .step {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center;
+    background: var(--card); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--line);
+  }
+  .step h3 { margin: 0 0 4px; font-size: 19px; display: flex; align-items: center; gap: 10px; }
+  .step h3::before {
+    counter-increment: step; content: counter(step);
+    width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--amber), var(--orange)); color: #fff; font-size: 15px;
+  }
+  .step p { margin: 0; color: var(--muted); }
+  kbd {
+    display: inline-block; min-width: 24px; padding: 1px 7px; border-radius: 6px; text-align: center;
+    background: var(--soft); border: 1px solid var(--line); border-bottom-width: 2px; font: 600 14px/1.5 inherit; font-family: inherit; color: var(--ink);
+  }
+  .cmd { margin-top: 12px; }
+  .cmd code {
+    display: block; padding: 12px 14px; border-radius: 10px; background: #1b1530; color: #ffd58a;
+    font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; word-break: break-all; user-select: all;
+  }
+  .cmd .btn { margin-top: 10px; width: 100%; justify-content: center; }
+
+  /* Mockups */
+  .mock { display: grid; place-items: center; min-height: 150px; }
+  .spot {
+    width: 100%; max-width: 300px; border-radius: 14px; background: rgba(250, 250, 252, 0.95); color: #1d1d1f;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); border: 1px solid rgba(0, 0, 0, 0.08); overflow: hidden;
+  }
+  .spot .q { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-size: 20px; }
+  .spot .q svg { flex: none; opacity: 0.55; }
+  .spot .hit { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: #2f6fed; color: #fff; font-size: 14px; font-weight: 600; }
+  .tile { width: 26px; height: 26px; border-radius: 6px; background: #1d1d1f; color: #e5e5e5; display: grid; place-items: center; font: 700 11px/1 ui-monospace, Menlo, monospace; border: 1px solid #555; }
+
+  .term {
+    width: 100%; max-width: 320px; border-radius: 11px; background: #1e1e22; color: #e8e8ea; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); font: 12px/1.55 ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .term .tb { height: 26px; background: #2c2c31; display: flex; gap: 6px; align-items: center; padding: 0 10px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .term pre { margin: 0; padding: 12px; white-space: pre-wrap; word-break: break-all; }
+  .term .ok { color: #8be28b; }
+
+  .menubar {
+    width: 100%; max-width: 330px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    background: linear-gradient(135deg, #5a77c9, #b46aa8 60%, #f0a35e);
+  }
+  .menubar .strip {
+    display: flex; align-items: center; justify-content: flex-end; gap: 12px; height: 30px; padding: 0 12px;
+    background: rgba(255, 255, 255, 0.55); backdrop-filter: blur(8px); color: #1d1d1f; font-size: 13px; font-weight: 500;
+  }
+  .menubar .strip .grey { width: 16px; height: 10px; border-radius: 2px; background: rgba(0, 0, 0, 0.45); }
+  .menubar .sunbtn { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; background: rgba(0, 0, 0, 0.12); outline: 2px solid var(--orange); outline-offset: 2px; }
+  .menubar .desk { height: 92px; position: relative; }
+  .menubar .hint {
+    position: absolute; right: 54px; top: 10px; background: #fff; color: #1d1d1f; font-size: 12px; font-weight: 600;
+    padding: 6px 10px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+  .menubar .hint::before { content: ""; position: absolute; right: 14px; top: -6px; border: 6px solid transparent; border-top: 0; border-bottom-color: #fff; }
+
+  /* Usage */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .panels figure { margin: 0; }
+  .panels img { width: 100%; height: auto; border-radius: 16px; box-shadow: var(--shadow); display: block; }
+  .panels figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .tips { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+  .tips li { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 13px 16px; box-shadow: var(--shadow); }
+  .tips b { color: var(--ink); }
+
+  /* Alternative install */
+  details.alt { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+  details.alt summary { cursor: pointer; list-style: none; padding: 18px 20px; font-weight: 600; display: flex; justify-content: space-between; gap: 10px; }
+  details.alt summary::-webkit-details-marker { display: none; }
+  details.alt summary::after { content: "+"; color: var(--muted); font-size: 20px; line-height: 1; }
+  details.alt[open] summary::after { content: "–"; }
+  .alt-body { padding: 0 20px 20px; display: grid; gap: 18px; }
+  .alt-step { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; }
+  .alt-step p { margin: 0; color: var(--muted); }
+  .alt-step p b { color: var(--ink); }
+
+  .win {
+    width: 100%; max-width: 300px; border-radius: 12px; background: #fbfbfd; color: #1d1d1f; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  .win .tb { height: 26px; background: #ececf0; display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: #666; gap: 8px; }
+  .dmg { display: flex; align-items: center; justify-content: space-around; padding: 22px 10px 18px; font-size: 12px; text-align: center; }
+  .dmg img { width: 58px; height: 58px; display: block; margin: 0 auto 4px; }
+  .folder { width: 58px; height: 46px; margin: 6px auto 8px; position: relative; border-radius: 6px; background: linear-gradient(#7cc0ff, #3d93f0); }
+  .folder::before { content: ""; position: absolute; left: 0; top: -6px; width: 24px; height: 10px; border-radius: 4px 4px 0 0; background: #5aa7f7; }
+  .arrow { font-size: 26px; color: var(--orange); font-weight: 700; }
+
+  .dialog {
+    width: 100%; max-width: 260px; border-radius: 16px; background: #f4f4f6; color: #1d1d1f; padding: 18px 16px 14px; text-align: center;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.25); font-size: 12px;
+  }
+  .dialog img { width: 48px; height: 48px; }
+  .dialog h4 { margin: 6px 0 4px; font-size: 13px; }
+  .dialog p { margin: 0 0 12px; color: #444 !important; }
+  .dialog .b { display: block; border-radius: 8px; padding: 7px; margin-top: 6px; font-weight: 600; background: #e2e2e6; }
+  .dialog .b.main { background: #2f6fed; color: #fff; outline: 2px solid var(--orange); outline-offset: 2px; }
+
+  .settings { display: flex; }
+  .settings .side { width: 34%; background: #ececf0; padding: 10px 8px; font-size: 11px; display: grid; gap: 4px; align-content: start; }
+  .settings .side span { padding: 4px 6px; border-radius: 5px; }
+  .settings .side span.on { background: #2f6fed; color: #fff; }
+  .settings .main { flex: 1; padding: 12px; font-size: 11px; }
+  .settings .main p { color: #444 !important; margin: 0 0 8px; }
+  .settings .main .b { display: inline-block; border-radius: 6px; padding: 5px 10px; background: #fff; border: 1px solid #ccc; font-weight: 600; outline: 2px solid var(--orange); outline-offset: 2px; }
+
+  /* FAQ */
+  .faq { display: grid; gap: 10px; }
+  .faq div { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .faq h3 { margin: 0 0 4px; font-size: 16px; }
+  .faq p { margin: 0; color: var(--muted); }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 40px 0 50px; }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 36px; }
+    .step, .alt-step { grid-template-columns: 1fr; }
+    .compare { gap: 10px; }
+    .panels { gap: 10px; }
+    h2 { font-size: 23px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img class="icon" src="img/icon.png" alt="Sunscreen app icon">
+    <h1>Sunscreen</h1>
+    <p class="tag">
+      
+      Your Mac follows the sun. Normal during the day. When the sun sets, the blue light disappears from your screen, all by itself.
+    </p>
+    <div class="meta">
+      
+      Free · Mac with macOS 13 or newer · 1 minute to install
+    </div>
+    <div class="phone-note">
+      
+      You're on your phone. Open this link on your Mac to install.
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="#install">Install</a>
+      <a class="btn ghost" href="#use">See how it works</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>What it looks like</h2>
+    <p class="lead">
+      
+      The same screen, day and evening. In the evening there is zero blue light, like wearing blue-light glasses.
+    </p>
+    <div class="compare">
+      <figure class="shot">
+        <div class="screen" aria-hidden="true">
+          <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <div class="pic"></div>
+          <div class="lines"><span></span><span></span><span></span><span style="width:70%"></span><span></span></div>
+          <div class="chips"><span style="background:#2f6fed"></span><span style="background:#34c759"></span><span style="background:#ff3b30"></span><span style="background:#af52de"></span></div>
+        </div>
+        <figcaption>Daytime: normal colours</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="screen evening" aria-hidden="true">
+          <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <div class="pic"></div>
+          <div class="lines"><span></span><span></span><span></span><span style="width:70%"></span><span></span></div>
+          <div class="chips"><span style="background:#2f6fed"></span><span style="background:#34c759"></span><span style="background:#ff3b30"></span><span style="background:#af52de"></span></div>
+        </div>
+        <figcaption>Evening: no blue light</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install in 1 minute</h2>
+    <p class="lead">
+      
+      Three steps. No tech skills needed, you just copy one line.
+    </p>
+    <div class="steps">
+      <div class="step">
+        <div>
+          <h3>Open Terminal</h3>
+          <p>
+            
+            Press <kbd>⌘</kbd> and <kbd>Space</kbd> together, type <b>Terminal</b> and press <kbd>Enter</kbd>.
+          </p>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="spot">
+            <div class="q">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+              Terminal
+            </div>
+            <div class="hit"><span class="tile">&gt;_</span> Terminal</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div>
+          <h3>Copy and paste</h3>
+          <p>
+            
+            Click <b>Copy</b>. Click in the Terminal window, press <kbd>⌘</kbd><kbd>V</kbd>, then <kbd>Enter</kbd>.
+          </p>
+          <div class="cmd">
+            <code id="cmd">curl -fsSL https://rmmarketingmcc.github.io/sunscreen/install.sh | bash</code>
+            <button class="btn primary" type="button" id="copy">
+              Copy
+            </button>
+          </div>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="term">
+            <div class="tb dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+<pre>~ % curl -fsSL https://rmmarketingmcc.github.io/sunscreen/install.sh | bash
+Downloading Sunscreen...
+<span class="ok">Done! Look for the little sun (or moon) at the top right of your screen.</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div>
+          <h3>Done</h3>
+          <p>
+            
+            After a few seconds a little sun appears at the top right. It starts by itself every time you turn on your Mac.
+          </p>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="menubar">
+            <div class="strip">
+              <span class="grey"></span><span class="grey" style="width:22px"></span>
+              <span class="sunbtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+              </span>
+              <span>21.30</span>
+            </div>
+            <div class="desk">
+              <div class="hint">Here it is</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="use">
+    <h2>How to use it</h2>
+    <p class="lead">
+      
+      Click the sun (or moon) in the menu bar to open this panel.
+    </p>
+    <div class="panels">
+      <figure>
+        <img src="img/panel-day.png" alt="Sunscreen panel during the day" loading="lazy">
+        <figcaption>During the day</figcaption>
+      </figure>
+      <figure>
+        <img src="img/panel-evening.png" alt="Sunscreen panel in the evening" loading="lazy">
+        <figcaption>In the evening</figcaption>
+      </figure>
+    </div>
+    <ul class="tips">
+      <li>
+        
+        <b>See your day.</b> Where you are, the time, sunrise, sunset and when the filter turns on.
+      </li>
+      <li>
+        
+        <b>Pick Sleep.</b> Zero blue light in the evening, like blue-light glasses. That's the recommendation. For daytime, Daylight is recommended: blue light by day keeps you alert and helps you sleep at night.
+      </li>
+      <li>
+        
+        <b>Need a break?</b> Say for a movie or photo editing: press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> (Ctrl, Option, Cmd and P). Press again to turn it back on. Or pick 15 min, 1 hour or tonight in the panel.
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <details class="alt">
+      <summary>
+        
+        Rather download a file than use Terminal?
+      </summary>
+      <div class="alt-body">
+        <div class="alt-step">
+          <p>
+            
+            <b>1.</b> Download the file and open it. Drag <b>Sunscreen</b> onto the <b>Applications</b> folder.
+            <br><br>
+            <a class="btn primary" href="https://github.com/rmmarketingmcc/sunscreen/releases/latest/download/Sunscreen.dmg">
+              Download Sunscreen
+            </a>
+          </p>
+          <div class="mock" aria-hidden="true">
+            <div class="win">
+              <div class="tb dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i>Sunscreen</div>
+              <div class="dmg">
+                <div><img src="img/icon.png" alt="">Sunscreen</div>
+                <div class="arrow">→</div>
+                <div><div class="folder"></div>Applications</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-step">
+          <p>
+            
+            <b>2.</b> Open Sunscreen from Applications. Your Mac shows a warning because the app isn't from the App Store. That's normal. Click <b>Done</b>.
+          </p>
+          <div class="mock" aria-hidden="true">
+            <div class="dialog">
+              <img src="img/icon.png" alt="">
+              <h4>"Sunscreen" Not Opened</h4>
+              <p>Apple could not verify "Sunscreen" is free of malware...</p>
+              <span class="b main">Done</span>
+              <span class="b">Move to Trash</span>
+            </div>
+          </div>
+        </div>
+        <div class="alt-step">
+          <p>
+            
+            <b>3.</b> Open <b>System Settings</b>, choose <b>Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. Enter your password. You only do this once.
+          </p>
+          <div class="mock" aria-hidden="true">
+            <div class="win settings">
+              <div class="side">
+                <span>Wi-Fi</span><span>Bluetooth</span>
+                <span class="on">Privacy &amp; Security</span>
+                <span>Desktop</span>
+              </div>
+              <div class="main">
+                <p>"Sunscreen" was blocked to protect your Mac.</p>
+                <span class="b">Open Anyway</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Questions</h2>
+    <div class="faq">
+      <div>
+        <h3>Will it work on my Mac?</h3>
+        <p>
+          
+          Yes, on any Mac with macOS 13 or newer. The colour filter works on every screen. Dimming an external monitor needs an M-chip Mac and a monitor connected by USB-C or DisplayPort.
+        </p>
+      </div>
+      <div>
+        <h3>Is it safe?</h3>
+        <p>
+          
+          The app only changes your screen's colours and brightness. Quit it and colours are back to normal instantly. The code is open on GitHub.
+        </p>
+      </div>
+      <div>
+        <h3>How do I get updates?</h3>
+        <p>
+          Automatically. When there's a new version, a small dot appears on the sun and the panel says <b>Update available</b>. Click <b>Update</b> and it installs itself in a few seconds.
+        </p>
+      </div>
+      <div>
+        <h3>How do I remove it?</h3>
+        <p>
+          
+          Click the sun, choose Quit, and drag Sunscreen from Applications to the Trash. Colours go back to normal right away.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Sunscreen ·
+    <a href="https://github.com/rmmarketingmcc/sunscreen">Source code on GitHub</a>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) root.classList.add("is-phone");
+
+    var copy = document.getElementById("copy");
+    copy.addEventListener("click", function () {
+      var text = document.getElementById("cmd").textContent.trim();
+      var done = function () {
+        copy.textContent = "Copied!";
+        setTimeout(function () { copy.textContent = "Copy"; }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { selectCmd(); });
+      } else { selectCmd(); }
+    });
+    function selectCmd() {
+      var r = document.createRange();
+      r.selectNodeContents(document.getElementById("cmd"));
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+  })();
+</script>
+</body>
+</html>
