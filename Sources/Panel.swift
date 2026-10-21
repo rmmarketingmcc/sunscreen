@@ -59,10 +59,26 @@ enum Fmt {
 struct PanelView: View {
     let app: App
     @ObservedObject var store: Store
+    @State private var contentHeight: CGFloat = 520
 
     var body: some View {
+        if app.renderingSnapshot {
+            content
+        } else {
+            // Never taller than the screen: the top used to get cut off. Scrolls only when needed.
+            let limit = app.panelMaxHeight
+            ScrollView(.vertical) {
+                content.background(GeometryReader { g in Color.clear.preference(key: PanelHeight.self, value: g.size.height) })
+            }
+            .scrollIndicators(contentHeight > limit ? .automatic : .hidden)
+            .frame(width: 340, height: min(contentHeight, limit))
+            .onPreferenceChange(PanelHeight.self) { contentHeight = $0 }
+        }
+    }
+
+    private var content: some View {
         let s = app.makeSnapshot()
-        VStack(spacing: 10) {
+        return VStack(spacing: 10) {
             HeaderView(s: s, app: app)
             if let problem = s.problem { ProblemCard(problem: problem, app: app) }
             if app.update != nil { UpdateCard(app: app) }
@@ -70,6 +86,7 @@ struct PanelView: View {
             ModeCard(s: s, app: app)
             if Settings.showAllSettings {
                 TodayCard(s: s)
+                TimingCard(s: s, app: app)
                 EveningCard(app: app)
                 DaytimeCard(app: app)
                 BrightnessCard(s: s, app: app)
@@ -84,6 +101,11 @@ struct PanelView: View {
         .frame(width: 340)
         .fontDesign(.rounded)
     }
+}
+
+struct PanelHeight: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 // MARK: - Building blocks
@@ -415,6 +437,79 @@ struct EveningCard: View {
     }
 }
 
+/// Own timing: start the evening (and the morning) earlier or later than the sun, in 15-minute steps.
+struct TimingCard: View {
+    let s: Snapshot
+    let app: App
+
+    var body: some View {
+        let adjusted = Settings.eveningOffsetMinutes != 0 || Settings.morningOffsetMinutes != 0
+        Card {
+            CardTitle(title: "Timing", trailing: adjusted ? "Your own timing" : "Follows the sun")
+            OffsetRow(label: "Evening starts", event: "sunset", minutes: Settings.eveningOffsetMinutes, sunTime: s.sunset) {
+                app.shiftEvening(by: $0)
+            }
+            OffsetRow(label: "Morning starts", event: "sunrise", minutes: Settings.morningOffsetMinutes, sunTime: s.sunrise) {
+                app.shiftMorning(by: $0)
+            }
+            if adjusted {
+                Button("Back to sunset and sunrise") { app.resetTiming() }
+                    .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+}
+
+struct OffsetRow: View {
+    let label: String
+    let event: String
+    let minutes: Int
+    let sunTime: Date?
+    let change: (Int) -> Void
+
+    private static func duration(_ m: Int) -> String {
+        let h = m / 60, rest = m % 60
+        if h == 0 { return "\(rest) min" }
+        return rest == 0 ? "\(h) h" : "\(h) h \(rest) min"
+    }
+
+    private var detail: String {
+        let when = sunTime.map { Fmt.time($0.addingTimeInterval(Double(minutes) * 60)) } ?? "-"
+        if minutes == 0 { return "At \(event) · \(when)" }
+        return "\(OffsetRow.duration(abs(minutes))) \(minutes > 0 ? "after" : "before") \(event) · \(when)"
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label).font(.system(size: 12, weight: .semibold))
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer()
+            StepButton(symbol: "minus", enabled: minutes > Settings.offsetRange.lowerBound) { change(-15) }
+            StepButton(symbol: "plus", enabled: minutes < Settings.offsetRange.upperBound) { change(15) }
+        }
+    }
+}
+
+struct StepButton: View {
+    let symbol: String
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .bold))
+                .frame(width: 30, height: 26)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.08)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
+    }
+}
+
 /// Folds the panel open (all settings) or closed (just the essentials).
 struct MoreButton: View {
     let app: App
@@ -446,10 +541,10 @@ struct WhatsNewCard: View {
                 Text("What's new in \(app.whatsNew.first?.version ?? Updater.current)").font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
-            ForEach(Array(app.whatsNew.flatMap(\.notes).prefix(5).enumerated()), id: \.offset) { _, note in
+            ForEach(Array(app.whatsNew.flatMap(\.notes).prefix(4).enumerated()), id: \.offset) { _, note in
                 HStack(alignment: .top, spacing: 6) {
                     Text("•").foregroundStyle(.secondary)
-                    Text(note).fixedSize(horizontal: false, vertical: true)
+                    Text(note).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.system(size: 11))
             }

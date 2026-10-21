@@ -24,8 +24,16 @@ enum Sun {
         return asin(sin(lat) * sin(dec) + cos(lat) * cos(dec) * cos(hourAngle)) / rad
     }
 
-    /// 0 = full evening, 1 = full day, linear through twilight.
+    /// 0 = full evening, 1 = full day, linear through twilight. Includes the user's own timing:
+    /// "evening 30 min later" is the sun as it was 30 minutes earlier, while the sun is going down.
     static func dayFraction(_ p: Place, at date: Date) -> Double {
+        let settingSun = elevation(p, at: date.addingTimeInterval(600)) < elevation(p, at: date)
+        let shift = settingSun ? Settings.eveningOffsetMinutes : Settings.morningOffsetMinutes
+        return sunFraction(p, at: date.addingTimeInterval(-Double(shift) * 60))
+    }
+
+    /// The sun alone, without the user's timing.
+    static func sunFraction(_ p: Place, at date: Date) -> Double {
         let span = Settings.fullDayElevation - Settings.fullNightElevation
         return min(max((elevation(p, at: date) - Settings.fullNightElevation) / span, 0), 1)
     }
@@ -79,21 +87,21 @@ enum Sun {
 
     /// When full daylight returns after the coming (or current) evening. nil in polar night/day.
     static func nextFullDay(_ p: Place, after date: Date) -> Date? {
-        var seenEvening = elevation(p, at: date) < Settings.fullDayElevation
+        var seenEvening = dayFraction(p, at: date) < 1
         for minute in stride(from: 2, through: 48 * 60, by: 2) {
             let t = date.addingTimeInterval(Double(minute) * 60)
-            if elevation(p, at: t) < Settings.fullDayElevation { seenEvening = true }
+            if dayFraction(p, at: t) < 1 { seenEvening = true }
             else if seenEvening { return t }
         }
         return nil
     }
 
-    /// When the evening filter next starts fading in. nil if it's already on.
+    /// When the evening filter next starts fading in (with the user's timing). nil if it's already on.
     static func nextEveningStart(_ p: Place, after date: Date) -> Date? {
-        guard elevation(p, at: date) >= Settings.fullDayElevation else { return nil }
+        guard dayFraction(p, at: date) >= 1 else { return nil }
         for minute in stride(from: 2, through: 48 * 60, by: 2) {
             let t = date.addingTimeInterval(Double(minute) * 60)
-            if elevation(p, at: t) < Settings.fullDayElevation { return t }
+            if dayFraction(p, at: t) < 1 { return t }
         }
         return nil
     }

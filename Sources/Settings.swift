@@ -32,6 +32,17 @@ enum Settings {
         get { (defaults.object(forKey: "darkUntil") as? Date).flatMap { $0 > Date() ? $0 : nil } }
         set { defaults.set(newValue, forKey: "darkUntil") }
     }
+    /// Own timing on top of the sun, in minutes (positive = later). The evening look starts this much
+    /// after sunset, and the morning comes this much after sunrise. 0 = exactly with the sun.
+    static let offsetRange = -180...180
+    static var eveningOffsetMinutes: Int {
+        get { defaults.integer(forKey: "eveningOffsetMinutes") }
+        set { defaults.set(min(max(newValue, offsetRange.lowerBound), offsetRange.upperBound), forKey: "eveningOffsetMinutes") }
+    }
+    static var morningOffsetMinutes: Int {
+        get { defaults.integer(forKey: "morningOffsetMinutes") }
+        set { defaults.set(min(max(newValue, offsetRange.lowerBound), offsetRange.upperBound), forKey: "morningOffsetMinutes") }
+    }
     /// Panel shows everything (true) or just the essentials (false, default).
     static var showAllSettings: Bool {
         get { defaults.bool(forKey: "showAllSettings") }

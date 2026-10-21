@@ -164,6 +164,7 @@ final class App: NSObject, NSApplicationDelegate {
                 clockOffset = Calendar.current.startOfDay(for: Date()).addingTimeInterval(hour * 3600).timeIntervalSince(Date())
             }
             if args.contains("--whats-new") { whatsNew = Array(Changelog.load().prefix(1)) }
+            renderingSnapshot = true
             Task { @MainActor in self.renderSnapshot(to: path); exit(0) }
             return
         }
@@ -694,6 +695,32 @@ final class App: NSObject, NSApplicationDelegate {
         }
         update(fade: App.clickFadeSeconds, easeOut: true)
     }
+
+    /// Own timing: move the start of the evening / morning by 15-minute steps relative to the sun.
+    func shiftEvening(by minutes: Int) {
+        Settings.eveningOffsetMinutes += minutes
+        Reporter.log("evening offset \(Settings.eveningOffsetMinutes) min")
+        update(fade: App.clickFadeSeconds, easeOut: true)
+    }
+
+    func shiftMorning(by minutes: Int) {
+        Settings.morningOffsetMinutes += minutes
+        Reporter.log("morning offset \(Settings.morningOffsetMinutes) min")
+        update(fade: App.clickFadeSeconds, easeOut: true)
+    }
+
+    func resetTiming() {
+        Settings.eveningOffsetMinutes = 0
+        Settings.morningOffsetMinutes = 0
+        update(fade: App.clickFadeSeconds, easeOut: true)
+    }
+
+    /// The panel never gets taller than the screen the menu bar icon is on; beyond that it scrolls.
+    var panelMaxHeight: CGFloat {
+        let screen = statusItem?.button?.window?.screen ?? NSScreen.main
+        return max(320, (screen?.visibleFrame.height ?? 900) - 24)
+    }
+    private(set) var renderingSnapshot = false
 
     func toggleAllSettings() {
         Settings.showAllSettings.toggle()
