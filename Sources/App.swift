@@ -84,10 +84,42 @@ final class App: NSObject, NSApplicationDelegate {
     private var wasFullDay: Bool?
     private var rescanPending = false
 
-    private var shown = 1.0                 // day fraction currently on screen (1 = normal colours)
-    private var fadeTimer: Timer?
-    private var fadeFrom = 1.0, fadeTo = 1.0
+    /// What's on the screens: colour, software dimming and monitor brightness, faded as one.
+    private struct Look {
+        var colour: Colour
+        var dims: [CGDirectDisplayID: Double]   // software dimming, 1 = none
+        var levels: [String: Double]            // monitor brightness % (DDC), by screen key
+
+        static func mix(_ a: Look, _ b: Look, _ t: Double) -> Look {
+            func m(_ x: Double, _ y: Double) -> Double { x + (y - x) * t }
+            var dims: [CGDirectDisplayID: Double] = [:]
+            for k in Set(a.dims.keys).union(b.dims.keys) { dims[k] = m(a.dims[k] ?? 1, b.dims[k] ?? 1) }
+            var levels: [String: Double] = [:]
+            for (k, v) in b.levels { levels[k] = m(a.levels[k] ?? v, v) }
+            return Look(colour: Colour(r: m(a.colour.r, b.colour.r), g: m(a.colour.g, b.colour.g), b: m(a.colour.b, b.colour.b)),
+                        dims: dims, levels: levels)
+        }
+
+        func matches(_ o: Look) -> Bool {
+            abs(colour.r - o.colour.r) < 0.002 && abs(colour.g - o.colour.g) < 0.002 && abs(colour.b - o.colour.b) < 0.002
+                && Set(dims.keys).union(o.dims.keys).allSatisfy { abs((dims[$0] ?? 1) - (o.dims[$0] ?? 1)) < 0.002 }
+                && Set(levels.keys) == Set(o.levels.keys)
+                && levels.allSatisfy { abs($0.value - (o.levels[$0.key] ?? -1)) < 0.5 }
+        }
+    }
+
+    /// Every change glides over this long, so eyes adjust instead of being hit by a jump.
+    static let fadeSeconds = 1.6
+    private var shownLook: Look?
+    private var fadeFrom: Look?
+    private var fadeTarget: Look?
     private var fadeStart = Date()
+    private var fadeDuration = App.fadeSeconds
+    private var fadeTimer: Timer?
+    private var hardwareGoal: [String: Int] = [:]   // brightness each monitor should be at right now
+    private var ddcCursor = 0
+    private var quitting = false
+    private(set) var whatsNew: [Changelog.Entry] = []
 
     private var frontAppPause: String?
 
@@ -109,11 +141,13 @@ final class App: NSObject, NSApplicationDelegate {
             if i + 2 < args.count, let hour = Double(args[i + 2]) {
                 clockOffset = Calendar.current.startOfDay(for: Date()).addingTimeInterval(hour * 3600).timeIntervalSince(Date())
             }
+            if args.contains("--whats-new") { whatsNew = Array(Changelog.load().prefix(1)) }
             Task { @MainActor in self.renderSnapshot(to: path); exit(0) }
             return
         }
         Reporter.log("Sunscreen \(Updater.current) started on macOS \(ProcessInfo.processInfo.operatingSystemVersionString), \(Reporter.machine)")
         checkPreviousCrash()
+        checkWhatsNew()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem?.button?.target = self
@@ -143,11 +177,38 @@ final class App: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(timeInterval: 6 * 3600, target: self, selector: #selector(periodicUpdateCheck), userInfo: nil, repeats: true)
     }
 
+    /// Quitting (or updating) eases the colours back to normal instead of snapping.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !quitting, let shown = shownLook,
+              !shown.colour.isNeutral || shown.dims.values.contains(where: { $0 < 0.999 }) else { return .terminateNow }
+        transition(to: Look(colour: .neutral, dims: [:], levels: shown.levels), duration: 1.2)
+        quitting = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) { NSApp.reply(toApplicationShouldTerminate: true) }
+        return .terminateLater
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         fadeTimer?.invalidate()
         filter.restoreAll()
         overlays.removeAll()
     }
+
+    /// After an update, show what changed (from the changelog bundled in the app) once.
+    private func checkWhatsNew() {
+        let current = Updater.current
+        // Installs from before this setting existed count as 1.3.
+        let last = Settings.lastSeenVersion ?? (Settings.defaults.bool(forKey: "loginItemConfigured") ? "1.3" : nil)
+        Settings.lastSeenVersion = current
+        guard let last, Updater.isNewer(current, than: last) else { return }
+        whatsNew = Changelog.since(last)
+    }
+
+    func dismissWhatsNew() {
+        whatsNew = []
+        store.refresh()
+    }
+
+    func openChangelog() { NSWorkspace.shared.open(URL(string: "https://rmmarketingmcc.github.io/sunscreen/#changelog")!) }
 
     /// sunscreen://show, pause[?minutes=N], pause-tonight, resume, toggle, check, update, report
     /// (for Shortcuts, Raycast, Stream Deck, etc.)
@@ -161,7 +222,8 @@ final class App: NSObject, NSApplicationDelegate {
             case "pause-tonight": pauseTonight()
             case "resume": resume()
             case "toggle": togglePause()
-            case "preview": preview()
+            case "preview": preview(seconds: Double(URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first { $0.name == "seconds" }?.value ?? "") ?? 10)
             case "check": checkForUpdates(manual: true)
             case "update": checkForUpdates(manual: true, thenInstall: true)
             case "report": report(nil)
@@ -284,23 +346,32 @@ final class App: NSObject, NSApplicationDelegate {
         return Int(((Double(night) + f * Double(day - night)) / 5).rounded()) * 5
     }
 
-    /// Sends the next brightness change to one monitor; called again when that write finishes.
+    /// nil = leave this monitor alone (first read still pending, or untouched in daylight).
+    private func hardwareLevel(_ s: Screen, _ f: Double) -> Int? {
+        let hw = hardware[s.key] ?? Hardware()
+        // Wait for the first read so the user's own daytime level is known before changing anything.
+        if !hw.firstReadDone && f >= 1 { return nil }
+        // Fresh start in daylight with nothing remembered yet: leave the monitor as the user has it.
+        if hw.written == nil && f >= 1 && Settings.rememberedBrightness(s.key, evening: false) == nil { return nil }
+        return brightnessTarget(s, f)
+    }
+
+    /// Sends the newest brightness goal to one monitor at a time (round robin) and runs again when the
+    /// write finishes, so during a fade each monitor steps through the in-between levels as fast as it takes them.
     private func driveHardware() {
         guard !ddcBusy, Date() >= ddcHoldUntil else { return }
-        let f = brightnessFraction()
-        for s in screens where s.control == .hardware {
-            guard let ref = ddcRefs[s.id] else { continue }
+        let monitors = screens.filter { $0.control == .hardware }
+        guard !monitors.isEmpty else { return }
+        for offset in 0..<monitors.count {
+            let s = monitors[(ddcCursor + offset) % monitors.count]
+            guard let ref = ddcRefs[s.id], let goal = hardwareGoal[s.key] else { continue }
             var hw = hardware[s.key] ?? Hardware()
-            // Wait for the first read so the user's own daytime level is known before changing anything.
-            if !hw.firstReadDone && f >= 1 { continue }
-            // Fresh start in daylight with nothing remembered yet: leave the monitor as the user has it.
-            if hw.written == nil && f >= 1 && Settings.rememberedBrightness(s.key, evening: false) == nil { continue }
-            let target = brightnessTarget(s, f)
-            guard target != hw.written else { continue }
-            hw.written = target
+            guard goal != hw.written else { continue }
+            ddcCursor = (ddcCursor + offset + 1) % monitors.count
+            hw.written = goal
             hardware[s.key] = hw
             ddcBusy = true
-            let units = Int((Double(target) * Double(hw.max) / 100).rounded())
+            let units = Int((Double(goal) * Double(hw.max) / 100).rounded())
             ddcQueue.async {
                 let ok = DDC.writeBrightness(ref, units)
                 DispatchQueue.main.async { self.hardwareWritten(s, ok) }
@@ -357,7 +428,11 @@ final class App: NSObject, NSApplicationDelegate {
 
     // Runs every 2 s: macOS resets gamma on wake/replug, the filter re-checks it each tick
     // (and only writes when something actually changed).
-    @objc private func tick() {
+    @objc private func tick() { update() }
+
+    /// Works out what the screens should look like now and glides there.
+    private func update(fade duration: Double = App.fadeSeconds) {
+        guard !quitting else { return }
         let natural = naturalFraction()
         if wasFullDay == true && natural < 1 {
             // Sun is going down: pick up any brightness the user set on the monitor itself today.
@@ -365,47 +440,92 @@ final class App: NSObject, NSApplicationDelegate {
             for s in screens where s.control == .hardware { readHardware(s, adoptAsDay: true) }
         }
         wasFullDay = natural >= 1
-        fade(to: colourFraction())
-        driveHardware()
+        transition(to: targetLook(), duration: duration)
+        scheduleEndOfPreviewOrPause()
         updateIcon()
         if popover.isShown { store.refresh() }
     }
 
-    /// Big jumps (pause, resume, preview, launch) fade over ~1 s instead of flashing.
-    private func fade(to target: Double) {
-        if fadeTimer != nil { fadeTo = target; return }
-        if abs(target - shown) < 0.06 { render(target); return }
-        fadeFrom = shown
-        fadeTo = target
+    /// The fade back starts the moment a preview or pause runs out, not at the next 2 s tick.
+    private var endTimer: Timer?
+    private func scheduleEndOfPreviewOrPause() {
+        let ends = [previewUntil, Settings.pausedUntil].compactMap { $0 }.filter { $0 > Date() }
+        guard let next = ends.min(), next.timeIntervalSinceNow < 2.5 else { return }
+        if let current = endTimer, current.isValid, abs(current.fireDate.timeIntervalSince(next)) < 0.05 { return }
+        endTimer?.invalidate()
+        let timer = Timer(fireAt: next.addingTimeInterval(0.02), interval: 0, target: self, selector: #selector(tick), userInfo: nil, repeats: false)
+        RunLoop.main.add(timer, forMode: .common)
+        endTimer = timer
+    }
+
+    private func targetLook() -> Look {
+        let bf = brightnessFraction()
+        var dims: [CGDirectDisplayID: Double] = [:]
+        var levels: [String: Double] = [:]
+        for s in screens {
+            if s.control == .software && !s.isBuiltin { dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100) }
+            if s.control == .hardware, let level = hardwareLevel(s, bf) { levels[s.key] = Double(level) }
+        }
+        return Look(colour: Colour.at(fraction: colourFraction()), dims: dims, levels: levels)
+    }
+
+    /// Every change glides (colour, dimming and monitor brightness together), never jumps.
+    private func transition(to target: Look, duration: Double) {
+        if fadeTimer != nil, let heading = fadeTarget, heading.matches(target) { return }
+        var current = shownLook ?? Look(colour: .neutral, dims: [:], levels: [:])
+        // Monitors join the fade from wherever they are now.
+        for key in target.levels.keys where current.levels[key] == nil {
+            if let level = hardware[key]?.written ?? hardware[key]?.read { current.levels[key] = Double(level) }
+        }
+        if fadeTimer == nil && current.matches(target) {
+            show(target)
+            return
+        }
+        fadeFrom = current
+        fadeTarget = target
         fadeStart = Date()
-        fadeTimer = Timer.scheduledTimer(timeInterval: 1.0 / 30, target: self, selector: #selector(fadeStep), userInfo: nil, repeats: true)
+        fadeDuration = duration
+        if fadeTimer == nil {
+            let timer = Timer(timeInterval: 1.0 / 40, target: self, selector: #selector(fadeStep), userInfo: nil, repeats: true)
+            RunLoop.main.add(timer, forMode: .common)   // keeps fading while a slider is being dragged
+            fadeTimer = timer
+        }
     }
 
     @objc private func fadeStep() {
-        let t = min(Date().timeIntervalSince(fadeStart) / 1.2, 1)
-        let eased = t * t * (3 - 2 * t)
-        render(fadeFrom + (fadeTo - fadeFrom) * eased)
+        guard let from = fadeFrom, let to = fadeTarget else {
+            fadeTimer?.invalidate()
+            fadeTimer = nil
+            return
+        }
+        let t = min(Date().timeIntervalSince(fadeStart) / fadeDuration, 1)
+        let eased = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2   // slow start, slow finish
+        show(Look.mix(from, to, eased))
         if t >= 1 {
             fadeTimer?.invalidate()
             fadeTimer = nil
         }
     }
 
-    private func render(_ fraction: Double) {
-        shown = fraction
-        let colour = Colour.at(fraction: fraction)
-        let bf = brightnessFraction()
-        var dims: [CGDirectDisplayID: Double] = [:]
-        for s in screens where s.control == .software && !s.isBuiltin {
-            dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100)
-        }
+    private func show(_ look: Look) {
+        shownLook = look
         let rejectedBefore = filter.rejected
-        filter.apply(colour, dims: dims, displays: screens.filter { !$0.overlay }.map(\.id))
-        overlays.update(colour, dims: dims, displays: screens.filter(\.overlay).map(\.id))
+        filter.apply(look.colour, dims: look.dims, displays: screens.filter { !$0.overlay }.map(\.id))
+        overlays.update(look.colour, dims: look.dims, displays: screens.filter(\.overlay).map(\.id))
+        for (key, level) in look.levels { hardwareGoal[key] = Int(level.rounded()) }
+        driveHardware()
         if filter.rejected != rejectedBefore {
             Reporter.log("colour curve not supported on display \(filter.rejected.subtracting(rejectedBefore)), using overlay")
             rescanScreens()
         }
+    }
+
+    /// Sliders follow the finger directly (only automatic changes fade).
+    private func followFinger(_ change: (inout Look) -> Void) {
+        if var l = shownLook { change(&l); shownLook = l }
+        if var l = fadeFrom { change(&l); fadeFrom = l }
+        if var l = fadeTarget { change(&l); fadeTarget = l }
+        if fadeTimer == nil, let l = shownLook { show(l) }
     }
 
     private func colourConflict() {
@@ -421,7 +541,7 @@ final class App: NSObject, NSApplicationDelegate {
     // MARK: Menu bar icon
 
     private func updateIcon() {
-        let symbol = Settings.pausedUntil != nil ? "pause.circle" : (shown < 0.5 ? "moon.stars" : "sun.max")
+        let symbol = Settings.pausedUntil != nil ? "pause.circle" : (colourFraction() < 0.5 ? "moon.stars" : "sun.max")
         let dot = update != nil || !problems.isEmpty
         let key = symbol + (dot ? "+dot" : "")
         guard key != iconKey, let button = statusItem?.button else { return }
@@ -470,9 +590,12 @@ final class App: NSObject, NSApplicationDelegate {
     func togglePause() { Settings.pausedUntil == nil ? pause(minutes: 60) : resume() }
     func preview(seconds: Double = 10) { previewUntil = Date().addingTimeInterval(seconds); tick() }
 
-    func setNightKelvin(_ k: Double) {
-        Settings.nightKelvin = k
-        if naturalFraction() > 0 || Settings.pausedUntil != nil { preview(seconds: 5) } else { tick() }
+    /// Evening colour as "% blue light". Buttons fade the full 1.6 s; dragging the slider glides
+    /// quickly behind the finger. In daylight it shows the evening look for a few seconds.
+    func setEveningBlue(_ percent: Double, dragging: Bool = false) {
+        Settings.nightKelvin = Colour.kelvin(forBluePercent: percent)
+        if naturalFraction() > 0 || Settings.pausedUntil != nil { previewUntil = Date().addingTimeInterval(6) }
+        update(fade: dragging ? 0.35 : App.fadeSeconds)
     }
 
     func setDayKelvin(_ k: Double) { Settings.dayKelvin = k; tick() }
@@ -492,10 +615,10 @@ final class App: NSObject, NSApplicationDelegate {
             BuiltinBrightness.set(id, value)
         case .hardware:
             Settings.remember(value, for: s.key, evening: editingEvening)
-            driveHardware()
+            followFinger { $0.levels[s.key] = Double(value) }
         case .software:
             Settings.remember(value, for: s.key, evening: editingEvening)
-            render(shown)
+            followFinger { $0.dims[s.id] = max(0.2, Double(value) / 100) }
         }
         store.refresh()
     }
@@ -506,7 +629,7 @@ final class App: NSObject, NSApplicationDelegate {
         Settings.overlayScreens = keys
         Reporter.log("overlay \(keys.contains(key) ? "on" : "off") for \(key)")
         rescanScreens()
-        render(shown)
+        update()
     }
 
     func useExactLocation() {
