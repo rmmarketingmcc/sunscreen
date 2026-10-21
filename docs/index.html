@@ -212,6 +212,34 @@
   .settings .main p { color: #444 !important; margin: 0 0 8px; }
   .settings .main .b { display: inline-block; border-radius: 6px; padding: 5px 10px; background: #fff; border: 1px solid #ccc; font-weight: 600; outline: 2px solid var(--orange); outline-offset: 2px; }
 
+  /* Open Terminal button */
+  .term-btn { margin-top: 12px; }
+  .term-help { margin-top: 10px !important; padding: 10px 12px; border-radius: 10px; background: rgba(243, 154, 74, 0.14); color: var(--ink) !important; font-size: 14px; }
+
+  /* Comparison */
+  .table-wrap { overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); box-shadow: var(--shadow); background: var(--card); }
+  table.versus { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+  .versus th, .versus td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .versus tr:last-child td { border-bottom: 0; }
+  .versus thead th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .versus td:first-child { font-weight: 600; width: 30%; }
+  .versus .us { background: rgba(243, 154, 74, 0.10); font-weight: 600; }
+  .versus thead .us { color: var(--orange); }
+  .versus .yes { color: #2f9e57; }
+  .versus .us.yes { color: var(--orange); }
+  .versus .no { color: var(--muted); }
+  .versus .na { color: var(--muted); opacity: 0.7; }
+  .fine { color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+  /* Changelog */
+  .changes { display: grid; gap: 10px; }
+  .release { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .release h3 { margin: 0 0 6px; font-size: 16px; display: flex; gap: 10px; align-items: baseline; }
+  .release h3 span { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .release ul { margin: 0; padding-left: 18px; color: var(--muted); }
+  .release li { margin: 3px 0; }
+  .show-all { justify-self: start; }
+
   /* FAQ */
   .faq { display: grid; gap: 10px; }
   .faq div { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
@@ -287,7 +315,11 @@
         <div>
           <h3>Open Terminal</h3>
           <p>
-            Press <kbd>⌘</kbd> and <kbd>Space</kbd> together, type <b>Terminal</b> and press <kbd>Enter</kbd>.
+            Click the button. Or press <kbd>⌘</kbd> and <kbd>Space</kbd> together, type <b>Terminal</b> and press <kbd>Enter</kbd>.
+          </p>
+          <button class="btn primary term-btn" type="button" id="openTerminal">Open Terminal for me</button>
+          <p class="term-help" id="terminalHelp" hidden>
+            Terminal opens with a short help text. Press <kbd>⌘</kbd><kbd>N</kbd> for a fresh window, then <kbd>⌘</kbd><kbd>V</kbd> and <kbd>Enter</kbd>. The install line is already copied for you. If your browser asks, click <b>Allow</b>.
           </p>
         </div>
         <div class="mock" aria-hidden="true">
@@ -369,7 +401,7 @@ Downloading Sunscreen...
         <b>See your day.</b> Where you are, the time, sunrise, sunset and when the filter turns on.
       </li>
       <li>
-        <b>Pick Sleep.</b> Zero blue light in the evening, like blue-light glasses. That's the recommendation. For daytime, Daylight is recommended: blue light by day keeps you alert and helps you sleep at night.
+        <b>Pick how much blue light.</b> <b>Max sleep</b> means 0% blue light in the evening, like blue-light glasses. That's the recommendation. Slide towards <b>Natural</b> for more normal-looking colours. For daytime, Daylight is recommended: blue light by day keeps you alert and helps you sleep at night.
       </li>
       <li>
         <b>Set brightness per screen.</b> One slider for each screen, MacBook included. Sunscreen remembers what you pick in the daytime and in the evening, and switches between them with the sun.
@@ -439,6 +471,41 @@ Downloading Sunscreen...
         </div>
       </div>
     </details>
+  </section>
+
+  <section id="compare">
+    <h2>Sunscreen vs. the others</h2>
+    <p class="lead">Built from what people complain about in other apps. How it compares, based on each app's own website and user reports:</p>
+    <div class="table-wrap">
+      <table class="versus">
+        <thead>
+          <tr><th></th><th class="us">Sunscreen</th><th>f.lux</th><th>Night Shift</th><th>Lunar</th><th>MonitorControl</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Price</td><td class="us">Free</td><td>Free</td><td>Built into macOS</td><td>Free, Pro $23</td><td>Free</td></tr>
+          <tr><td>0% blue light in the evening</td><td class="us yes">Yes</td><td class="yes">Yes</td><td class="no">No</td><td class="na">Not a colour app</td><td class="na">Not a colour app</td></tr>
+          <tr><td>Follows sunset where you are</td><td class="us yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Pro, for brightness</td><td class="no">No</td></tr>
+          <tr><td>Dims external monitors itself</td><td class="us yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+          <tr><td>Remembers day and evening brightness per screen</td><td class="us yes">Yes</td><td class="no">No</td><td class="no">No</td><td>Pro, learns from you</td><td class="no">No, by hand</td></tr>
+          <tr><td>Normal colours in photo and video apps</td><td class="us yes">Automatic</td><td>Per app, by hand</td><td class="no">No</td><td class="na">-</td><td class="na">-</td></tr>
+          <tr><td>Smooth fades on every change</td><td class="us yes">Yes</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="na">-</td><td class="na">-</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="tips">
+      <li><b>f.lux</b> pioneered all this and is still great. On Mac its last release came out in 2024.</li>
+      <li><b>Night Shift</b> needs nothing installed, but even at its warmest a fair amount of blue light gets through.</li>
+      <li><b>Lunar</b> and <b>BetterDisplay</b> are powerful for monitor brightness; their automatic modes and colour features cost money.</li>
+      <li><b>MonitorControl</b> is free and solid for monitor brightness, but doesn't change colours or follow the sun.</li>
+      <li><b>Sunscreen</b> is new. If something doesn't work on your setup, the report button sends it straight to the developer, and fixes arrive as automatic updates.</li>
+    </ul>
+    <p class="fine">Based on each app's website, documentation and user reports, October 2026. Prices and features can change.</p>
+  </section>
+
+  <section id="changelog">
+    <h2>What's new</h2>
+    <p class="lead">Every update, newest first. Sunscreen installs updates itself.</p>
+    <div id="changes" class="changes"><p class="fine">See <a href="https://github.com/rmmarketingmcc/sunscreen/releases">all releases on GitHub</a>.</p></div>
   </section>
 
   <section>
@@ -512,6 +579,38 @@ Downloading Sunscreen...
         navigator.clipboard.writeText(text).then(done, function () { selectCmd(); });
       } else { selectCmd(); }
     });
+    document.getElementById("openTerminal").addEventListener("click", function () {
+      var text = document.getElementById("cmd").textContent.trim();
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).catch(function () {}); }
+      document.getElementById("terminalHelp").hidden = false;
+      // Terminal handles x-man-page links: this opens it with the tiny "true" help page.
+      window.location.href = "x-man-page://true";
+    });
+
+    fetch("changelog.json", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (entries) {
+      var box = document.getElementById("changes");
+      box.innerHTML = "";
+      entries.forEach(function (e, i) {
+        var el = document.createElement("div");
+        el.className = "release";
+        if (i > 2) el.hidden = true;
+        var h = document.createElement("h3");
+        h.textContent = "Version " + e.version + " ";
+        var d = document.createElement("span");
+        d.textContent = new Date(e.date + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+        h.appendChild(d);
+        var ul = document.createElement("ul");
+        e.notes.forEach(function (n) { var li = document.createElement("li"); li.textContent = n; ul.appendChild(li); });
+        el.appendChild(h); el.appendChild(ul); box.appendChild(el);
+      });
+      if (entries.length > 3) {
+        var more = document.createElement("button");
+        more.className = "btn ghost show-all"; more.type = "button"; more.textContent = "Show all " + entries.length + " updates";
+        more.addEventListener("click", function () { box.querySelectorAll(".release").forEach(function (r) { r.hidden = false; }); more.remove(); });
+        box.appendChild(more);
+      }
+    }).catch(function () {});
+
     function selectCmd() {
       var r = document.createRange();
       r.selectNodeContents(document.getElementById("cmd"));
