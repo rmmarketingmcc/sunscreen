@@ -2,6 +2,11 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.8 (2026-10-21)
+- Your own timing: under All settings, start the evening (or the morning) earlier or later than the sun, in 15-minute steps
+- The panel never gets taller than your screen: it scrolls instead of being cut off at the top
+- The What's new card is more compact
+
 ## 1.7 (2026-10-21)
 - Simple view by default: just Auto, Bright, Dark and how much blue light. All settings fold out with one click
 
