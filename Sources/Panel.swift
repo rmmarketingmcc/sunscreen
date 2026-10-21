@@ -446,12 +446,16 @@ struct TimingCard: View {
         let adjusted = Settings.eveningOffsetMinutes != 0 || Settings.morningOffsetMinutes != 0
         Card {
             CardTitle(title: "Timing", trailing: adjusted ? "Your own timing" : "Follows the sun")
-            OffsetRow(label: "Evening starts", event: "sunset", minutes: Settings.eveningOffsetMinutes, sunTime: s.sunset) {
+            OffsetRow(label: "Evening starts", event: "sunset", minutes: Settings.eveningOffsetMinutes, sunTime: s.sunset,
+                      canEarlier: app.canShiftEvening(by: -15), canLater: app.canShiftEvening(by: 15)) {
                 app.shiftEvening(by: $0)
             }
-            OffsetRow(label: "Morning starts", event: "sunrise", minutes: Settings.morningOffsetMinutes, sunTime: s.sunrise) {
+            OffsetRow(label: "Morning starts", event: "sunrise", minutes: Settings.morningOffsetMinutes, sunTime: s.sunrise,
+                      canEarlier: app.canShiftMorning(by: -15), canLater: app.canShiftMorning(by: 15)) {
                 app.shiftMorning(by: $0)
             }
+            Text("Click or hold − / + to move it in 15-minute steps. Past midnight is fine.")
+                .font(.system(size: 10)).foregroundStyle(.tertiary)
             if adjusted {
                 Button("Back to sunset and sunrise") { app.resetTiming() }
                     .buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Color.accentColor)
@@ -465,6 +469,8 @@ struct OffsetRow: View {
     let event: String
     let minutes: Int
     let sunTime: Date?
+    let canEarlier: Bool
+    let canLater: Bool
     let change: (Int) -> Void
 
     private static func duration(_ m: Int) -> String {
@@ -486,8 +492,8 @@ struct OffsetRow: View {
                 Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            StepButton(symbol: "minus", enabled: minutes > Settings.offsetRange.lowerBound) { change(-15) }
-            StepButton(symbol: "plus", enabled: minutes < Settings.offsetRange.upperBound) { change(15) }
+            StepButton(symbol: "minus", enabled: canEarlier) { change(-15) }
+            StepButton(symbol: "plus", enabled: canLater) { change(15) }
         }
     }
 }
@@ -505,8 +511,16 @@ struct StepButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .repeatsWhenHeld()
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
+    }
+}
+
+extension View {
+    /// Holding the button keeps stepping (macOS 14+); on macOS 13 it's one step per click.
+    @ViewBuilder func repeatsWhenHeld() -> some View {
+        if #available(macOS 14.0, *) { self.buttonRepeatBehavior(.enabled) } else { self }
     }
 }
 

@@ -34,7 +34,8 @@ enum Settings {
     }
     /// Own timing on top of the sun, in minutes (positive = later). The evening look starts this much
     /// after sunset, and the morning comes this much after sunrise. 0 = exactly with the sun.
-    static let offsetRange = -180...180
+    /// Wide on purpose (evening past midnight is fine); the real limit is Sun.timingAllowed.
+    static let offsetRange = -720...720
     static var eveningOffsetMinutes: Int {
         get { defaults.integer(forKey: "eveningOffsetMinutes") }
         set { defaults.set(min(max(newValue, offsetRange.lowerBound), offsetRange.upperBound), forKey: "eveningOffsetMinutes") }

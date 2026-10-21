@@ -698,15 +698,30 @@ final class App: NSObject, NSApplicationDelegate {
 
     /// Own timing: move the start of the evening / morning by 15-minute steps relative to the sun.
     func shiftEvening(by minutes: Int) {
+        guard canShiftEvening(by: minutes) else { return }
         Settings.eveningOffsetMinutes += minutes
         Reporter.log("evening offset \(Settings.eveningOffsetMinutes) min")
         update(fade: App.clickFadeSeconds, easeOut: true)
     }
 
     func shiftMorning(by minutes: Int) {
+        guard canShiftMorning(by: minutes) else { return }
         Settings.morningOffsetMinutes += minutes
         Reporter.log("morning offset \(Settings.morningOffsetMinutes) min")
         update(fade: App.clickFadeSeconds, easeOut: true)
+    }
+
+    /// − / + stay enabled as long as evening and morning don't cross (push the evening past midnight if you like).
+    func canShiftEvening(by minutes: Int) -> Bool {
+        let next = Settings.eveningOffsetMinutes + minutes
+        return Settings.offsetRange.contains(next)
+            && Sun.timingAllowed(place, evening: next, morning: Settings.morningOffsetMinutes, around: now)
+    }
+
+    func canShiftMorning(by minutes: Int) -> Bool {
+        let next = Settings.morningOffsetMinutes + minutes
+        return Settings.offsetRange.contains(next)
+            && Sun.timingAllowed(place, evening: Settings.eveningOffsetMinutes, morning: next, around: now)
     }
 
     func resetTiming() {
