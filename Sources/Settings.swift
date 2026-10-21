@@ -32,6 +32,11 @@ enum Settings {
         get { (defaults.object(forKey: "darkUntil") as? Date).flatMap { $0 > Date() ? $0 : nil } }
         set { defaults.set(newValue, forKey: "darkUntil") }
     }
+    /// Panel shows everything (true) or just the essentials (false, default).
+    static var showAllSettings: Bool {
+        get { defaults.bool(forKey: "showAllSettings") }
+        set { defaults.set(newValue, forKey: "showAllSettings") }
+    }
     /// Version whose "What's new" the user has already seen.
     static var lastSeenVersion: String? {
         get { defaults.string(forKey: "lastSeenVersion") }

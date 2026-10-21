@@ -35,6 +35,20 @@ enum Fmt {
         Calendar.current.isDate(d, inSameDayAs: now) ? "at \(time(d))" : "tomorrow at \(time(d))"
     }
 
+    /// "Filter turns on at 18.00 · in 4 h" and friends: what happens next, with an icon.
+    static func nextLine(_ s: Snapshot) -> (String, String) {
+        if s.override != .auto, let until = s.overrideUntil {
+            return ("arrow.uturn.backward.circle", "Back to Auto \(at(until, from: s.now)) · in \(self.until(until, from: s.now))")
+        }
+        if let on = s.filterOn {
+            return ("moon.stars", "Filter turns on \(at(on, from: s.now)) · in \(self.until(on, from: s.now))")
+        }
+        if let off = s.filterOff {
+            return ("sun.max", "Filter on now · normal again \(at(off, from: s.now))")
+        }
+        return ("circle", "No sunrise or sunset here today")
+    }
+
     static func until(_ d: Date, from now: Date) -> String {
         let mins = max(0, Int(d.timeIntervalSince(now) / 60))
         if mins < 60 { return "\(mins) min" }
@@ -54,11 +68,16 @@ struct PanelView: View {
             if app.update != nil { UpdateCard(app: app) }
             if !app.whatsNew.isEmpty { WhatsNewCard(app: app) }
             ModeCard(s: s, app: app)
-            TodayCard(s: s)
-            EveningCard(app: app)
-            DaytimeCard(app: app)
-            BrightnessCard(s: s, app: app)
-            OptionsCard(app: app)
+            if Settings.showAllSettings {
+                TodayCard(s: s)
+                EveningCard(app: app)
+                DaytimeCard(app: app)
+                BrightnessCard(s: s, app: app)
+                OptionsCard(app: app)
+            } else {
+                EveningCard(app: app, compact: true, status: Fmt.nextLine(s))
+            }
+            MoreButton(app: app)
             FooterView(app: app)
         }
         .padding(14)
@@ -305,18 +324,7 @@ struct UpdateCard: View {
 struct TodayCard: View {
     let s: Snapshot
 
-    private var nextLine: (String, String) {
-        if s.override != .auto, let until = s.overrideUntil {
-            return ("arrow.uturn.backward.circle", "Back to Auto \(Fmt.at(until, from: s.now)) · in \(Fmt.until(until, from: s.now))")
-        }
-        if let on = s.filterOn {
-            return ("moon.stars", "Filter turns on \(Fmt.at(on, from: s.now)) · in \(Fmt.until(on, from: s.now))")
-        }
-        if let off = s.filterOff {
-            return ("sun.max", "Filter on now · normal again \(Fmt.at(off, from: s.now))")
-        }
-        return ("circle", "No sunrise or sunset here today")
-    }
+    private var nextLine: (String, String) { Fmt.nextLine(s) }
 
     var body: some View {
         Card {
@@ -357,6 +365,8 @@ struct TodayCard: View {
 
 struct EveningCard: View {
     let app: App
+    var compact = false
+    var status: (String, String)? = nil
 
     /// The evening setting in words people use: how much blue light is left (Kelvin stays internal).
     private var blue: Double {
@@ -384,6 +394,11 @@ struct EveningCard: View {
                 Chip(title: "Balanced", detail: "35% blue", selected: abs(p - 35) <= 2) { app.setEveningBlue(35) }
                 Chip(title: "Natural", detail: "75% blue", selected: p >= 73) { app.setEveningBlue(75) }
             }
+            if compact {
+                if let status {
+                    Label(status.1, systemImage: status.0).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            } else {
             VStack(spacing: 3) {
                 SoftSlider(value: Binding(get: { blue }, set: { app.setEveningBlue($0, dragging: true) }),
                            range: Colour.eveningBlueRange, step: 5)
@@ -395,7 +410,29 @@ struct EveningCard: View {
                 .font(.system(size: 9, weight: .medium)).foregroundStyle(.tertiary)
             }
             Text(advice).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }
+    }
+}
+
+/// Folds the panel open (all settings) or closed (just the essentials).
+struct MoreButton: View {
+    let app: App
+
+    var body: some View {
+        Button { app.toggleAllSettings() } label: {
+            HStack(spacing: 5) {
+                Text(Settings.showAllSettings ? "Fewer settings" : "All settings")
+                Image(systemName: Settings.showAllSettings ? "chevron.up" : "chevron.down").font(.system(size: 10, weight: .semibold))
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

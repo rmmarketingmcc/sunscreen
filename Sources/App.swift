@@ -695,6 +695,11 @@ final class App: NSObject, NSApplicationDelegate {
         update(fade: App.clickFadeSeconds, easeOut: true)
     }
 
+    func toggleAllSettings() {
+        Settings.showAllSettings.toggle()
+        store.refresh()
+    }
+
     func toggleCreativePause() {
         Settings.pauseInCreativeApps.toggle()
         frontAppChanged()
