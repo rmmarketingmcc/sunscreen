@@ -23,6 +23,7 @@ for arch in arm64 x86_64; do
 done
 lipo -create "$WORK/Sunscreen-arm64" "$WORK/Sunscreen-x86_64" -output "$APP/Contents/MacOS/Sunscreen"
 cp Info.plist "$APP/Contents/Info.plist"
+cp docs/changelog.json "$APP/Contents/Resources/changelog.json"  # for "What's new" after an update
 
 echo "==> Icon"
 swiftc -O Tools/make_icon.swift -o "$WORK/make_icon"

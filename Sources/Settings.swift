@@ -27,6 +27,11 @@ enum Settings {
         get { (defaults.object(forKey: "pausedUntil") as? Date).flatMap { $0 > Date() ? $0 : nil } }
         set { defaults.set(newValue, forKey: "pausedUntil") }
     }
+    /// Version whose "What's new" the user has already seen.
+    static var lastSeenVersion: String? {
+        get { defaults.string(forKey: "lastSeenVersion") }
+        set { defaults.set(newValue, forKey: "lastSeenVersion") }
+    }
     /// Normal colours while a photo/video/design app is in front.
     static var pauseInCreativeApps: Bool {
         get { defaults.object(forKey: "pauseInCreativeApps") != nil ? defaults.bool(forKey: "pauseInCreativeApps") : true }

@@ -59,7 +59,7 @@ enum Updater {
     static let website = URL(string: "https://rmmarketingmcc.github.io/sunscreen/")!
     static var current: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0" }
 
-    struct Release { let version: String; let notes: String; let zipURL: URL }
+    struct Release { let version: String; let notes: [String]; let zipURL: URL }
 
     static func isNewer(_ a: String, than b: String) -> Bool {
         let pa = a.split(separator: ".").map { Int($0) ?? 0 }, pb = b.split(separator: ".").map { Int($0) ?? 0 }
@@ -83,7 +83,7 @@ enum Updater {
                let link = assets.first(where: { $0["name"] as? String == "Sunscreen.zip" })?["browser_download_url"] as? String,
                let url = URL(string: link) {
                 let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-                let notes = (json["body"] as? String ?? "").split(separator: "\n").first.map(String.init) ?? ""
+                let notes = Changelog.bullets(json["body"] as? String ?? "")
                 if isNewer(version, than: current) { release = Release(version: version, notes: notes, zipURL: url) }
             }
             DispatchQueue.main.async { completion(release) }
@@ -110,7 +110,8 @@ enum Updater {
                     // Start the new copy once this one has quit.
                     let relaunch = Process()
                     relaunch.executableURL = URL(fileURLWithPath: "/bin/sh")
-                    relaunch.arguments = ["-c", "sleep 1; /usr/bin/open \"$0\"", installed.path]
+                    // Waits for this copy's 1.2 s fade-out, otherwise `open` just finds the old one still running.
+                    relaunch.arguments = ["-c", "sleep 3; /usr/bin/open \"$0\"", installed.path]
                     try? relaunch.run()
                     NSApp.terminate(nil)
                 }
@@ -131,6 +132,36 @@ enum Updater {
             throw NSError(domain: "Sunscreen", code: Int(p.terminationStatus),
                           userInfo: [NSLocalizedDescriptionKey: "\(path) exited \(p.terminationStatus)"])
         }
+    }
+}
+
+// MARK: - Changelog (written by release.sh, bundled as Resources/changelog.json)
+
+enum Changelog {
+    struct Entry { let version: String; let date: String; let notes: [String] }
+
+    static func load() -> [Entry] {
+        guard let url = Bundle.main.url(forResource: "changelog", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return list.compactMap { e in
+            guard let v = e["version"] as? String else { return nil }
+            return Entry(version: v, date: e["date"] as? String ?? "", notes: e["notes"] as? [String] ?? [])
+        }
+    }
+
+    /// Entries newer than `version`, newest first (at most `limit`).
+    static func since(_ version: String, limit: Int = 2) -> [Entry] {
+        Array(load().filter { Updater.isNewer($0.version, than: version) }.prefix(limit))
+    }
+
+    /// "- one\n- two" or plain text -> ["one", "two"]
+    static func bullets(_ text: String) -> [String] {
+        text.split(separator: "\n").map { line in
+            var s = line.trimmingCharacters(in: .whitespaces)
+            if s.hasPrefix("- ") || s.hasPrefix("* ") { s.removeFirst(2) }
+            return s
+        }.filter { !$0.isEmpty }
     }
 }
 
