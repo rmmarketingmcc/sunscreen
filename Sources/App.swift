@@ -131,6 +131,15 @@ final class App: NSObject, NSApplicationDelegate {
 
     // MARK: Lifecycle
 
+    private var launchedAtLogin = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Login items are started with an "open application" event flagged as a login launch.
+        if let event = NSAppleEventManager.shared().currentAppleEvent, event.eventID == AEEventID(kAEOpenApplication) {
+            launchedAtLogin = event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         resolvePlaceName()
         rescanScreens()
@@ -173,8 +182,20 @@ final class App: NSObject, NSApplicationDelegate {
         HotKey.register { [weak self] in self?.togglePause() }
         frontAppChanged()
         Timer.scheduledTimer(timeInterval: 2, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+        // Opened by hand (Dock, Spotlight, after installing or updating): show the panel so you see
+        // it's running. At login it stays quietly in the menu bar.
+        if !launchedAtLogin {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { if !self.popover.isShown { self.togglePanel() } }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { self.checkForUpdates() }
         Timer.scheduledTimer(timeInterval: 6 * 3600, target: self, selector: #selector(periodicUpdateCheck), userInfo: nil, repeats: true)
+    }
+
+    /// Clicking Sunscreen in the Dock, Launchpad, Spotlight or Applications while it's running
+    /// opens the panel, same as clicking the sun in the menu bar.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        DispatchQueue.main.async { if !self.popover.isShown { self.togglePanel() } }
+        return false
     }
 
     /// Quitting (or updating) eases the colours back to normal instead of snapping.
