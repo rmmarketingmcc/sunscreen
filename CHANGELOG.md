@@ -2,6 +2,12 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.6 (2026-10-21)
+- New Auto, Bright and Dark buttons at the top: one click makes it bright or dark right now, and it goes back to Auto by itself
+- Every button reacts the moment you click it, and picking a colour shows you the result for a few seconds
+- The Start at login and photo-app switches work when you click their text too
+- Daytime colour now sits above Brightness, the preview eye is gone (use Dark instead)
+
 ## 1.5 (2026-10-21)
 - Clicking Sunscreen in the Dock, Spotlight or Applications opens the panel, just like the sun in the menu bar
 
