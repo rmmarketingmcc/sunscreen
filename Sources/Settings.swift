@@ -27,6 +27,11 @@ enum Settings {
         get { (defaults.object(forKey: "pausedUntil") as? Date).flatMap { $0 > Date() ? $0 : nil } }
         set { defaults.set(newValue, forKey: "pausedUntil") }
     }
+    /// "Dark" override: full evening look now, until this time (then back to Auto).
+    static var darkUntil: Date? {
+        get { (defaults.object(forKey: "darkUntil") as? Date).flatMap { $0 > Date() ? $0 : nil } }
+        set { defaults.set(newValue, forKey: "darkUntil") }
+    }
     /// Version whose "What's new" the user has already seen.
     static var lastSeenVersion: String? {
         get { defaults.string(forKey: "lastSeenVersion") }

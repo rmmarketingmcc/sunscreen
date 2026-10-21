@@ -53,7 +53,8 @@ echo "Built build/Sunscreen.dmg and build/Sunscreen.zip"
 if [[ "${1:-}" == "--install" ]]; then
   echo "==> Installing to /Applications"
   osascript -e 'quit app "Sunscreen"' 2>/dev/null || true
-  sleep 1
+  # The app fades the colours back before it quits; wait until it's really gone.
+  for _ in $(seq 1 50); do pgrep -f "Sunscreen.app/Contents/MacOS/Sunscreen" >/dev/null || break; sleep 0.2; done
   rm -rf /Applications/Sunscreen.app
   cp -R "$APP" /Applications/
   open /Applications/Sunscreen.app

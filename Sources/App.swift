@@ -19,7 +19,7 @@ struct ScreenRow: Identifiable {
 }
 
 struct Snapshot {
-    enum Mode { case day, evening, fading, paused, preview, appPause }
+    enum Mode { case day, evening, fading, bright, dark, preview, appPause }
     let mode: Mode
     let now: Date
     let placeName: String
@@ -29,7 +29,8 @@ struct Snapshot {
     let sunset: Date?
     let filterOn: Date?    // next time the filter starts (nil if on now)
     let filterOff: Date?   // next time it's fully off again (nil if off now)
-    let pausedUntil: Date?
+    let override: App.Override
+    let overrideUntil: Date?
     let appPause: String?  // colour-critical app in front
     let timeline: [Double] // day fraction for today, every 15 min
     let position: Double   // now, 0-1 through today
@@ -115,7 +116,19 @@ final class App: NSObject, NSApplicationDelegate {
     private var fadeTarget: Look?
     private var fadeStart = Date()
     private var fadeDuration = App.fadeSeconds
+    private var fadeEaseOut = false          // clicks: change starts at once, then settles gently
+    /// Clicks fade a bit quicker than the sun does, and start changing immediately.
+    static let clickFadeSeconds = 1.2
     private var fadeTimer: Timer?
+    private var previewFraction = 0.0      // what a preview shows: 0 = evening look, 1 = daytime look
+
+    enum Override { case auto, bright, dark }
+    var override: Override {
+        if Settings.pausedUntil != nil { return .bright }
+        if Settings.darkUntil != nil { return .dark }
+        return .auto
+    }
+    var overrideUntil: Date? { Settings.pausedUntil ?? Settings.darkUntil }
     private var hardwareGoal: [String: Int] = [:]   // brightness each monitor should be at right now
     private var ddcCursor = 0
     private var quitting = false
@@ -243,6 +256,9 @@ final class App: NSObject, NSApplicationDelegate {
             case "pause-tonight": pauseTonight()
             case "resume": resume()
             case "toggle": togglePause()
+            case "auto": setMode(.auto)
+            case "bright": setMode(.bright)
+            case "dark": setMode(.dark)
             case "preview": preview(seconds: Double(URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "seconds" }?.value ?? "") ?? 10)
             case "check": checkForUpdates(manual: true)
@@ -276,12 +292,15 @@ final class App: NSObject, NSApplicationDelegate {
         tick()
     }
 
+    private var lastFrontApp: (id: String, name: String) = ("", "")
+
     @objc private func frontAppChanged() {
         let front = NSWorkspace.shared.frontmostApplication
         let id = front?.bundleIdentifier ?? ""
-        guard id != Bundle.main.bundleIdentifier else { return }   // opening our own panel
-        let creative = Settings.pauseInCreativeApps && App.creativeApps.contains { id.hasPrefix($0) }
-        let name = creative ? (front?.localizedName ?? "this app") : nil
+        // Our own panel coming to the front doesn't count: judge by the app the user was in.
+        if id != Bundle.main.bundleIdentifier { lastFrontApp = (id, front?.localizedName ?? "this app") }
+        let creative = Settings.pauseInCreativeApps && App.creativeApps.contains { lastFrontApp.id.hasPrefix($0) }
+        let name = creative ? lastFrontApp.name : nil
         if name != frontAppPause {
             frontAppPause = name
             if let name { Reporter.log("normal colours while \(name) is in front") }
@@ -433,16 +452,22 @@ final class App: NSObject, NSApplicationDelegate {
     private var previewing: Bool { (previewUntil ?? .distantPast) > Date() }
 
     private func colourFraction() -> Double {
-        if previewing { return 0 }
-        if Settings.pausedUntil != nil || frontAppPause != nil { return 1 }
-        return naturalFraction()
+        if previewing { return previewFraction }
+        switch override {
+        case .bright: return 1
+        case .dark: return 0
+        case .auto: return frontAppPause != nil ? 1 : naturalFraction()
+        }
     }
 
     /// Brightness doesn't jump when a photo app comes to the front, only colours do.
     private func brightnessFraction() -> Double {
-        if previewing { return 0 }
-        if Settings.pausedUntil != nil { return 1 }
-        return naturalFraction()
+        if previewing { return previewFraction }
+        switch override {
+        case .bright: return 1
+        case .dark: return 0
+        case .auto: return naturalFraction()
+        }
     }
 
     var editingEvening: Bool { brightnessFraction() < 0.5 }
@@ -452,7 +477,7 @@ final class App: NSObject, NSApplicationDelegate {
     @objc private func tick() { update() }
 
     /// Works out what the screens should look like now and glides there.
-    private func update(fade duration: Double = App.fadeSeconds) {
+    private func update(fade duration: Double = App.fadeSeconds, easeOut: Bool = false) {
         guard !quitting else { return }
         let natural = naturalFraction()
         if wasFullDay == true && natural < 1 {
@@ -461,7 +486,7 @@ final class App: NSObject, NSApplicationDelegate {
             for s in screens where s.control == .hardware { readHardware(s, adoptAsDay: true) }
         }
         wasFullDay = natural >= 1
-        transition(to: targetLook(), duration: duration)
+        transition(to: targetLook(), duration: duration, easeOut: easeOut)
         scheduleEndOfPreviewOrPause()
         updateIcon()
         if popover.isShown { store.refresh() }
@@ -470,7 +495,7 @@ final class App: NSObject, NSApplicationDelegate {
     /// The fade back starts the moment a preview or pause runs out, not at the next 2 s tick.
     private var endTimer: Timer?
     private func scheduleEndOfPreviewOrPause() {
-        let ends = [previewUntil, Settings.pausedUntil].compactMap { $0 }.filter { $0 > Date() }
+        let ends = [previewUntil, Settings.pausedUntil, Settings.darkUntil].compactMap { $0 }.filter { $0 > Date() }
         guard let next = ends.min(), next.timeIntervalSinceNow < 2.5 else { return }
         if let current = endTimer, current.isValid, abs(current.fireDate.timeIntervalSince(next)) < 0.05 { return }
         endTimer?.invalidate()
@@ -491,7 +516,7 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     /// Every change glides (colour, dimming and monitor brightness together), never jumps.
-    private func transition(to target: Look, duration: Double) {
+    private func transition(to target: Look, duration: Double, easeOut: Bool = false) {
         if fadeTimer != nil, let heading = fadeTarget, heading.matches(target) { return }
         var current = shownLook ?? Look(colour: .neutral, dims: [:], levels: [:])
         // Monitors join the fade from wherever they are now.
@@ -506,6 +531,7 @@ final class App: NSObject, NSApplicationDelegate {
         fadeTarget = target
         fadeStart = Date()
         fadeDuration = duration
+        fadeEaseOut = easeOut
         if fadeTimer == nil {
             let timer = Timer(timeInterval: 1.0 / 40, target: self, selector: #selector(fadeStep), userInfo: nil, repeats: true)
             RunLoop.main.add(timer, forMode: .common)   // keeps fading while a slider is being dragged
@@ -520,7 +546,8 @@ final class App: NSObject, NSApplicationDelegate {
             return
         }
         let t = min(Date().timeIntervalSince(fadeStart) / fadeDuration, 1)
-        let eased = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2   // slow start, slow finish
+        // Clicks: changes right away and settles gently. The sun: slow start, slow finish.
+        let eased = fadeEaseOut ? 1 - pow(1 - t, 3) : (t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2)
         show(Look.mix(from, to, eased))
         if t >= 1 {
             fadeTimer?.invalidate()
@@ -562,7 +589,12 @@ final class App: NSObject, NSApplicationDelegate {
     // MARK: Menu bar icon
 
     private func updateIcon() {
-        let symbol = Settings.pausedUntil != nil ? "pause.circle" : (colourFraction() < 0.5 ? "moon.stars" : "sun.max")
+        let symbol: String
+        switch override {
+        case .bright: symbol = "sun.max.fill"
+        case .dark: symbol = "moon.fill"
+        case .auto: symbol = colourFraction() < 0.5 ? "moon.stars" : "sun.max"
+        }
         let dot = update != nil || !problems.isEmpty
         let key = symbol + (dot ? "+dot" : "")
         guard key != iconKey, let button = statusItem?.button else { return }
@@ -595,35 +627,78 @@ final class App: NSObject, NSApplicationDelegate {
 
     // MARK: Actions (panel, hotkey, URLs)
 
+    /// The big switch at the top. Bright = daytime look now, Dark = evening look now.
+    /// Both go back to Auto by themselves (Bright at the next sunset, Dark at the next sunrise),
+    /// so nobody gets stuck in the wrong mode.
+    func setMode(_ mode: Override) {
+        previewUntil = nil
+        switch mode {
+        case .auto:
+            Settings.pausedUntil = nil
+            Settings.darkUntil = nil
+        case .bright:
+            Settings.darkUntil = nil
+            Settings.pausedUntil = brightUntil()
+        case .dark:
+            Settings.pausedUntil = nil
+            Settings.darkUntil = Sun.nextFullDay(place, after: Date()) ?? Date().addingTimeInterval(12 * 3600)
+        }
+        Reporter.log("mode \(mode)")
+        update(fade: App.clickFadeSeconds, easeOut: true)
+    }
+
+    private func brightUntil() -> Date {
+        if let evening = Sun.nextEveningStart(place, after: Date()) { return evening }   // daytime: until sunset
+        if let morning = Sun.nextFullDay(place, after: Date()),
+           let evening = Sun.nextEveningStart(place, after: morning) { return evening }  // night: until tomorrow's sunset
+        return Date().addingTimeInterval(12 * 3600)
+    }
+
+    /// For links and scripts: bright for a set time.
     func pause(minutes: Double) {
+        Settings.darkUntil = nil
         Settings.pausedUntil = Date().addingTimeInterval(minutes * 60)
         previewUntil = nil
-        tick()
+        update(fade: App.clickFadeSeconds, easeOut: true)
     }
 
-    func pauseTonight() {
-        Settings.pausedUntil = Sun.nextFullDay(place, after: Date()) ?? Date().addingTimeInterval(12 * 3600)
-        previewUntil = nil
-        tick()
+    func pauseTonight() { setMode(.bright) }
+    func resume() { setMode(.auto) }
+    /// Control-Option-Command-P: Bright on/off.
+    func togglePause() { setMode(override == .bright ? .auto : .bright) }
+
+    /// Shows a look for a few seconds (0 = evening, 1 = daytime) so a change is visible right away.
+    func preview(seconds: Double = 10, look fraction: Double = 0) {
+        previewFraction = fraction
+        previewUntil = Date().addingTimeInterval(seconds)
+        update(fade: App.clickFadeSeconds, easeOut: true)
     }
 
-    func resume() { Settings.pausedUntil = nil; tick() }
-    func togglePause() { Settings.pausedUntil == nil ? pause(minutes: 60) : resume() }
-    func preview(seconds: Double = 10) { previewUntil = Date().addingTimeInterval(seconds); tick() }
-
-    /// Evening colour as "% blue light". Buttons fade the full 1.6 s; dragging the slider glides
-    /// quickly behind the finger. In daylight it shows the evening look for a few seconds.
+    /// Evening colour as "% blue light". If it isn't evening on screen right now, the evening look
+    /// shows for a few seconds so you see what you picked. Dragging glides right behind the finger.
     func setEveningBlue(_ percent: Double, dragging: Bool = false) {
         Settings.nightKelvin = Colour.kelvin(forBluePercent: percent)
-        if naturalFraction() > 0 || Settings.pausedUntil != nil { previewUntil = Date().addingTimeInterval(6) }
-        update(fade: dragging ? 0.35 : App.fadeSeconds)
+        if colourFraction() > 0.05 || previewing {
+            previewFraction = 0
+            previewUntil = Date().addingTimeInterval(6)
+        }
+        update(fade: dragging ? 0.35 : App.clickFadeSeconds, easeOut: true)
     }
 
-    func setDayKelvin(_ k: Double) { Settings.dayKelvin = k; tick() }
+    /// Daytime colour; in the evening the daytime look shows for a few seconds so you see it.
+    func setDayKelvin(_ k: Double) {
+        Settings.dayKelvin = k
+        if colourFraction() < 0.95 || previewing {
+            previewFraction = 1
+            previewUntil = Date().addingTimeInterval(6)
+        }
+        update(fade: App.clickFadeSeconds, easeOut: true)
+    }
 
     func toggleCreativePause() {
         Settings.pauseInCreativeApps.toggle()
         frontAppChanged()
+        store.refresh()
     }
 
     /// Brightness slider: applies right away and is remembered for this screen, for the current
@@ -767,7 +842,7 @@ final class App: NSObject, NSApplicationDelegate {
     private func diagnostics(_ problem: Problem?) -> String {
         let others = NSWorkspace.shared.runningApplications.compactMap(\.localizedName)
             .filter { App.colourApps.contains($0.lowercased()) }
-        let mode = Settings.pausedUntil != nil ? "paused" : (previewing ? "preview" : String(format: "day fraction %.2f", naturalFraction()))
+        let mode = previewing ? "preview" : "\(override), day fraction \(String(format: "%.2f", naturalFraction()))"
         var out = [
             "### What happened?",
             "_Write a line about what you saw if you like, then press **Submit new issue**._",
@@ -797,7 +872,8 @@ final class App: NSObject, NSApplicationDelegate {
         let natural = naturalFraction()
         let mode: Snapshot.Mode
         if previewing { mode = .preview }
-        else if Settings.pausedUntil != nil { mode = .paused }
+        else if override == .bright { mode = .bright }
+        else if override == .dark { mode = .dark }
         else if frontAppPause != nil && natural < 1 { mode = .appPause }
         else if natural >= 1 { mode = .day }
         else if natural <= 0 { mode = .evening }
@@ -818,7 +894,7 @@ final class App: NSObject, NSApplicationDelegate {
                         kelvin: Colour.kelvinAt(fraction: colourFraction()), sunrise: events.rise, sunset: events.set,
                         filterOn: Sun.nextEveningStart(place, after: now),
                         filterOff: natural < 1 ? Sun.nextFullDay(place, after: now) : nil,
-                        pausedUntil: Settings.pausedUntil, appPause: frontAppPause, timeline: timeline,
+                        override: override, overrideUntil: overrideUntil, appPause: frontAppPause, timeline: timeline,
                         position: now.timeIntervalSince(start) / length, rows: rows, editingEvening: editingEvening,
                         problem: problems.first)
     }
@@ -846,5 +922,7 @@ final class App: NSObject, NSApplicationDelegate {
             Reporter.log("login item change failed: \(error.localizedDescription)")
         }
         store.refresh()
+        // macOS updates the login-item status a moment later; refresh again so the switch follows.
+        for delay in [0.3, 1.0] { DispatchQueue.main.asyncAfter(deadline: .now() + delay) { self.store.refresh() } }
     }
 }

@@ -53,11 +53,12 @@ struct PanelView: View {
             if let problem = s.problem { ProblemCard(problem: problem, app: app) }
             if app.update != nil { UpdateCard(app: app) }
             if !app.whatsNew.isEmpty { WhatsNewCard(app: app) }
+            ModeCard(s: s, app: app)
             TodayCard(s: s)
             EveningCard(app: app)
-            BrightnessCard(s: s, app: app)
             DaytimeCard(app: app)
-            PauseCard(s: s, app: app)
+            BrightnessCard(s: s, app: app)
+            OptionsCard(app: app)
             FooterView(app: app)
         }
         .padding(14)
@@ -187,8 +188,7 @@ struct HeaderView: View {
 
     private var icon: (String, LinearGradient) {
         switch s.mode {
-        case .day, .appPause: return ("sun.max.fill", Palette.day)
-        case .paused: return ("pause.fill", Palette.pause)
+        case .day, .appPause, .bright: return ("sun.max.fill", Palette.day)
         default: return ("moon.stars.fill", Palette.warm)
         }
     }
@@ -197,7 +197,8 @@ struct HeaderView: View {
         case .day: return "Daytime"
         case .evening: return "Evening mode"
         case .fading: return s.position > 0.5 ? "Sunset" : "Sunrise"
-        case .paused: return "Paused"
+        case .bright: return "Bright"
+        case .dark: return "Dark"
         case .preview: return "Preview"
         case .appPause: return "Normal colours"
         }
@@ -207,8 +208,9 @@ struct HeaderView: View {
         case .day: return "Normal colours"
         case .evening: return "Blue light filtered"
         case .fading: return s.position > 0.5 ? "Filter fading in" : "Filter fading out"
-        case .paused: return "Normal colours for now"
-        case .preview: return "Showing the evening look"
+        case .bright: return "Normal colours and brightness"
+        case .dark: return "Evening look, right now"
+        case .preview: return "Showing what you picked"
         case .appPause: return "While \(s.appPause ?? "this app") is in front"
         }
     }
@@ -304,8 +306,8 @@ struct TodayCard: View {
     let s: Snapshot
 
     private var nextLine: (String, String) {
-        if s.mode == .paused, let p = s.pausedUntil {
-            return ("pause.circle", "Back on \(Fmt.at(p, from: s.now)) · in \(Fmt.until(p, from: s.now))")
+        if s.override != .auto, let until = s.overrideUntil {
+            return ("arrow.uturn.backward.circle", "Back to Auto \(Fmt.at(until, from: s.now)) · in \(Fmt.until(until, from: s.now))")
         }
         if let on = s.filterOn {
             return ("moon.stars", "Filter turns on \(Fmt.at(on, from: s.now)) · in \(Fmt.until(on, from: s.now))")
@@ -376,8 +378,6 @@ struct EveningCard: View {
                 Text("Evening colour").font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text(verbatim: "\(Int(p))% blue light").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
-                Button { app.preview() } label: { Image(systemName: "eye") }
-                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Preview the evening look for 10 seconds")
             }
             HStack(spacing: 6) {
                 Chip(title: "Max sleep", detail: "0% blue", selected: p <= 2, recommended: true) { app.setEveningBlue(0) }
@@ -458,7 +458,7 @@ struct BrightnessCard: View {
             }
             Text(s.editingEvening
                  ? "Remembered as your evening brightness, per screen."
-                 : "Remembered per screen. To set the evening level now, press the eye above and adjust.")
+                 : "Remembered per screen. To set the evening level now, switch to Dark at the top and adjust.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -484,35 +484,94 @@ struct DaytimeCard: View {
     }
 }
 
-struct PauseCard: View {
+/// The big switch: follow the sun, or force bright / dark right now.
+struct ModeCard: View {
     let s: Snapshot
+    let app: App
+
+    private var caption: String {
+        switch s.override {
+        case .auto:
+            return "Follows the sun. Want it bright or dark right now? Tap Bright or Dark."
+        case .bright:
+            let until = s.overrideUntil.map { Fmt.at($0, from: s.now) } ?? ""
+            return "Bright until sunset (\(until)), then back to Auto. ⌃⌥⌘P switches it too."
+        case .dark:
+            let until = s.overrideUntil.map { Fmt.at($0, from: s.now) } ?? ""
+            return "Dark until sunrise (\(until)), then back to Auto."
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                ModeButton(title: "Auto", symbol: "circle.lefthalf.filled", selected: s.override == .auto,
+                           style: LinearGradient(colors: [Color(red: 0.55, green: 0.80, blue: 1.0), Color(red: 0.96, green: 0.42, blue: 0.24)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing)) { app.setMode(.auto) }
+                ModeButton(title: "Bright", symbol: "sun.max.fill", selected: s.override == .bright, style: Palette.day) { app.setMode(.bright) }
+                ModeButton(title: "Dark", symbol: "moon.fill", selected: s.override == .dark, style: Palette.warm) { app.setMode(.dark) }
+            }
+            Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+struct ModeButton: View {
+    let title: String
+    let symbol: String
+    let selected: Bool
+    let style: LinearGradient
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .semibold))
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(selected ? AnyShapeStyle(style) : AnyShapeStyle(Color.primary.opacity(0.07))))
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A switch with its label: the whole row is clickable.
+struct ToggleRow: View {
+    let title: String
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                ZStack(alignment: isOn ? .trailing : .leading) {
+                    Capsule().fill(isOn ? AnyShapeStyle(Palette.warm) : AnyShapeStyle(Color.primary.opacity(0.18)))
+                        .frame(width: 30, height: 18)
+                    Circle().fill(.white).frame(width: 14, height: 14).padding(2)
+                        .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                }
+                .animation(.easeOut(duration: 0.15), value: isOn)
+                Text(title).font(.system(size: 12))
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct OptionsCard: View {
     let app: App
 
     var body: some View {
         Card {
-            CardTitle(title: "Take a break", trailing: "⌃⌥⌘P")
-            if let p = s.pausedUntil {
-                Button { app.resume() } label: {
-                    Label("Turn back on now", systemImage: "play.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(maxWidth: .infinity).padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.warm))
-                        .foregroundStyle(.white)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                Text("Paused until \(Fmt.when(p, from: s.now))").font(.system(size: 11)).foregroundStyle(.secondary)
-            } else {
-                HStack(spacing: 6) {
-                    Chip(title: "15 min", selected: false) { app.pause(minutes: 15) }
-                    Chip(title: "1 hour", selected: false) { app.pause(minutes: 60) }
-                    Chip(title: "Tonight", selected: false) { app.pauseTonight() }
-                }
-            }
-            HStack(spacing: 7) {
-                SoftSwitch(isOn: Settings.pauseInCreativeApps) { app.toggleCreativePause() }
-                Text("Normal colours in photo and video apps").font(.system(size: 11))
-            }
+            ToggleRow(title: "Normal colours in photo and video apps", isOn: Settings.pauseInCreativeApps) { app.toggleCreativePause() }
+            ToggleRow(title: "Start at login", isOn: app.startsAtLogin) { app.setStartAtLogin(!app.startsAtLogin) }
         }
     }
 }
@@ -522,8 +581,6 @@ struct FooterView: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            SoftSwitch(isOn: app.startsAtLogin) { app.setStartAtLogin(!app.startsAtLogin) }
-            Text("Start at login")
             Spacer()
             Button("Report a problem") { app.report(nil) }.buttonStyle(.plain).foregroundStyle(.secondary)
             Text("·").foregroundStyle(.tertiary)
