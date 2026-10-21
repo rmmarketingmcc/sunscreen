@@ -19,7 +19,7 @@ mkdir -p build "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "==> Compiling"
 for arch in arm64 x86_64; do
-  swiftc -O -target "$arch-apple-macos13" Sources/main.swift -o "$WORK/Sunscreen-$arch"
+  swiftc -O -target "$arch-apple-macos13" Sources/*.swift -o "$WORK/Sunscreen-$arch"
 done
 lipo -create "$WORK/Sunscreen-arm64" "$WORK/Sunscreen-x86_64" -output "$APP/Contents/MacOS/Sunscreen"
 cp Info.plist "$APP/Contents/Info.plist"

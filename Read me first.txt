@@ -26,15 +26,20 @@ local time, today's sunrise and sunset, and when the filter turns on.
 There you can also:
 - pick the evening colour. "Sleep" (no blue, like anti-blue-light
   glasses) is recommended. Or drag the slider.
-- pick how dim an external monitor gets in the evening (default 30%)
+- set the brightness of each screen; daytime and evening are remembered
+  separately, so it dims in the evening and comes back in the morning
 - pick the daytime colour ("Daylight" is recommended)
 - click "Use exact location" for exact sunset times (by default your
   Mac's time zone is used; macOS asks for permission once)
 - click the eye to preview the evening look for 10 seconds
 
-The colour filter works on any Mac. Dimming an external monitor needs a
-Mac with Apple Silicon (M1 or newer) and a monitor connected by USB-C or
-DisplayPort.
+The evening colour works on every screen. Brightness works directly on
+the MacBook screen and most external monitors; if a monitor doesn't allow
+it, Sunscreen dims it in software instead.
+
+SOMETHING NOT WORKING?
+Click the sun > Report a problem. All the technical details are filled in,
+you just press Submit (needs a free GitHub account).
 
 UPDATES
 When there's a new version, a small dot appears on the sun and the
