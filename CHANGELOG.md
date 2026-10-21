@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.9 (2026-10-21)
+- Own timing without the 3-hour limit: push the evening past midnight or the morning as late as you like, and hold − or + to move fast
+
 ## 1.8 (2026-10-21)
 - Your own timing: under All settings, start the evening (or the morning) earlier or later than the sun, in 15-minute steps
 - The panel never gets taller than your screen: it scrolls instead of being cut off at the top
