@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.4",
+    "date": "2026-10-21",
+    "notes": [
+      "Every change now fades gently over 1.6 seconds: colour, brightness, pausing, previews, starting and quitting",
+      "Evening colour in plain words: from Max sleep (0% blue light) to Natural (75%), no more Kelvin",
+      "Shows what's new after every update, and the website keeps a list of every update"
+    ]
+  },
+  {
     "version": "1.3",
     "date": "2026-10-21",
     "notes": [

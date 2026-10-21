@@ -2,6 +2,11 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.4 (2026-10-21)
+- Every change now fades gently over 1.6 seconds: colour, brightness, pausing, previews, starting and quitting
+- Evening colour in plain words: from Max sleep (0% blue light) to Natural (75%), no more Kelvin
+- Shows what's new after every update, and the website keeps a list of every update
+
 ## 1.3 (2026-10-21)
 - A brightness slider for every screen, MacBook included. Daytime and evening levels are remembered per screen
 - Works with far more monitors: software dimming when a monitor can't be dimmed over the cable, and the evening colour as an overlay on DisplayLink, Sidecar and AirPlay screens
