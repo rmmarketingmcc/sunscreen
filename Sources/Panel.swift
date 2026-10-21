@@ -52,6 +52,7 @@ struct PanelView: View {
             HeaderView(s: s, app: app)
             if let problem = s.problem { ProblemCard(problem: problem, app: app) }
             if app.update != nil { UpdateCard(app: app) }
+            if !app.whatsNew.isEmpty { WhatsNewCard(app: app) }
             TodayCard(s: s)
             EveningCard(app: app)
             BrightnessCard(s: s, app: app)
@@ -281,10 +282,11 @@ struct UpdateCard: View {
                 Circle().fill(Palette.warm).frame(width: 32, height: 32)
                 Image(systemName: "arrow.down").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
             }
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Update available").font(.system(size: 13, weight: .semibold))
-                Text("Version \(app.update?.version ?? "")" + ((app.update?.notes ?? "").isEmpty ? "" : " · \(app.update?.notes ?? "")"))
-                    .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update available: \(app.update?.version ?? "")").font(.system(size: 13, weight: .semibold))
+                ForEach(Array((app.update?.notes ?? []).prefix(3).enumerated()), id: \.offset) { _, note in
+                    Text("• \(note)").font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                }
             }
             Spacer(minLength: 4)
             if app.updateStatus == "Updating..." {
@@ -354,37 +356,75 @@ struct TodayCard: View {
 struct EveningCard: View {
     let app: App
 
+    /// The evening setting in words people use: how much blue light is left (Kelvin stays internal).
+    private var blue: Double {
+        min(max(Colour.blueShare(Settings.nightKelvin), Colour.eveningBlueRange.lowerBound), Colour.eveningBlueRange.upperBound)
+    }
+
     private var advice: String {
-        let k = Settings.nightKelvin
-        if k <= 2000 { return "Best for sleep: no blue light, like anti-blue-light glasses. Recommended for the last 2-3 hours before bed." }
-        if k <= 2500 { return "Very warm. Almost no blue light left." }
-        if k <= 3000 { return "About as warm as Night Shift at its strongest. Some blue light left." }
-        return "Mild. Colours stay natural, but a fair amount of blue light gets through."
+        let p = blue.rounded()
+        if p <= 0 { return "Max sleep: no blue light at all, like anti-blue-light glasses. Best for the last 2-3 hours before bed." }
+        if p <= 20 { return "Very little blue light. Almost as good for sleep as Max sleep." }
+        if p <= 45 { return "Balanced: about as warm as Night Shift at its strongest." }
+        return "Natural: colours look almost normal, but most of the blue light gets through."
     }
 
     var body: some View {
-        let k = Settings.nightKelvin
+        let p = blue.rounded()
         Card {
             HStack {
                 Text("Evening colour").font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("Blue light \(Colour.bluePercent(k))%").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                Text(verbatim: "\(Int(p))% blue light").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                 Button { app.preview() } label: { Image(systemName: "eye") }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Preview the evening look for 10 seconds")
             }
             HStack(spacing: 6) {
-                Chip(title: "Sleep", detail: "No blue", selected: k == 1900, recommended: true) { app.setNightKelvin(1900) }
-                Chip(title: "Warm", detail: "Night Shift", selected: k == 2700) { app.setNightKelvin(2700) }
-                Chip(title: "Mild", detail: "Some blue", selected: k == 3400) { app.setNightKelvin(3400) }
+                Chip(title: "Max sleep", detail: "0% blue", selected: p <= 2, recommended: true) { app.setEveningBlue(0) }
+                Chip(title: "Balanced", detail: "35% blue", selected: abs(p - 35) <= 2) { app.setEveningBlue(35) }
+                Chip(title: "Natural", detail: "75% blue", selected: p >= 73) { app.setEveningBlue(75) }
             }
-            HStack(spacing: 8) {
-                Image(systemName: "flame").font(.system(size: 11)).foregroundStyle(.secondary)
-                SoftSlider(value: Binding(get: { Settings.nightKelvin }, set: { app.setNightKelvin($0) }),
-                           range: 1200...4500, step: 100)
-                Text(verbatim: "\(Int(k))K").font(.system(size: 11, weight: .medium)).monospacedDigit().frame(width: 42, alignment: .trailing)
+            VStack(spacing: 3) {
+                SoftSlider(value: Binding(get: { blue }, set: { app.setEveningBlue($0, dragging: true) }),
+                           range: Colour.eveningBlueRange, step: 5)
+                HStack {
+                    Text("Max sleep")
+                    Spacer()
+                    Text("Natural")
+                }
+                .font(.system(size: 9, weight: .medium)).foregroundStyle(.tertiary)
             }
             Text(advice).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+struct WhatsNewCard: View {
+    let app: App
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Image(systemName: "sparkles").foregroundStyle(Palette.warm)
+                Text("What's new in \(app.whatsNew.first?.version ?? Updater.current)").font(.system(size: 13, weight: .semibold))
+                Spacer()
+            }
+            ForEach(Array(app.whatsNew.flatMap(\.notes).prefix(5).enumerated()), id: \.offset) { _, note in
+                HStack(alignment: .top, spacing: 6) {
+                    Text("•").foregroundStyle(.secondary)
+                    Text(note).fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.system(size: 11))
+            }
+            HStack(spacing: 12) {
+                Button("All changes") { app.openChangelog() }.buttonStyle(.plain).foregroundStyle(.secondary)
+                Spacer()
+                PillButton(title: "Got it") { app.dismissWhatsNew() }
+            }
+            .font(.system(size: 12))
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.14)))
     }
 }
 

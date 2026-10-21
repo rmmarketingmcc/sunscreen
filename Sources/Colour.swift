@@ -31,4 +31,18 @@ struct Colour: Equatable {
 
     /// How much blue light is left at this colour temperature, 0-100.
     static func bluePercent(_ k: Double) -> Int { Int((kelvin(k).b * 100).rounded()) }
+
+    // People think in "how much blue light", not Kelvin. The evening scale runs from
+    // Max sleep (0% blue, 1900K) to Natural (75% blue, 4500K).
+    static let eveningBlueRange = 0.0...75.0
+
+    /// Blue light % (continuous) at a colour temperature.
+    static func blueShare(_ k: Double) -> Double { kelvin(k).b * 100 }
+
+    /// The colour temperature that leaves `percent` blue light (inverse of the blackbody blue curve).
+    static func kelvin(forBluePercent percent: Double) -> Double {
+        let refBlue = 138.5177312231 * log(Settings.referenceKelvin / 100 - 10) - 305.0447927307
+        let p = min(max(percent, 0), 100) / 100
+        return 100 * (10 + exp((p * refBlue + 305.0447927307) / 138.5177312231))
+    }
 }
