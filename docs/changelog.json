@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.7",
+    "date": "2026-10-21",
+    "notes": [
+      "Simple view by default: just Auto, Bright, Dark and how much blue light. All settings fold out with one click"
+    ]
+  },
+  {
     "version": "1.6",
     "date": "2026-10-21",
     "notes": [

@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.7 (2026-10-21)
+- Simple view by default: just Auto, Bright, Dark and how much blue light. All settings fold out with one click
+
 ## 1.6 (2026-10-21)
 - New Auto, Bright and Dark buttons at the top: one click makes it bright or dark right now, and it goes back to Auto by itself
 - Every button reacts the moment you click it, and picking a colour shows you the result for a few seconds
