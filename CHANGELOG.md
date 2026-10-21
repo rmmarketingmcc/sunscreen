@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.5 (2026-10-21)
+- Clicking Sunscreen in the Dock, Spotlight or Applications opens the panel, just like the sun in the menu bar
+
 ## 1.4 (2026-10-21)
 - Every change now fades gently over 1.6 seconds: colour, brightness, pausing, previews, starting and quitting
 - Evening colour in plain words: from Max sleep (0% blue light) to Natural (75%), no more Kelvin

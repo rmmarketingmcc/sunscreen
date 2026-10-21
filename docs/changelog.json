@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.5",
+    "date": "2026-10-21",
+    "notes": [
+      "Clicking Sunscreen in the Dock, Spotlight or Applications opens the panel, just like the sun in the menu bar"
+    ]
+  },
+  {
     "version": "1.4",
     "date": "2026-10-21",
     "notes": [
