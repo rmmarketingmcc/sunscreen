@@ -679,7 +679,11 @@ final class App: NSObject, NSApplicationDelegate {
     /// shows for a few seconds so you see what you picked. Dragging glides right behind the finger.
     func setEveningBlue(_ percent: Double, dragging: Bool = false) {
         Settings.nightKelvin = Colour.kelvin(forBluePercent: percent)
-        if colourFraction() > 0.05 || previewing {
+        // It's evening but Bright is on: picking an evening colour means you want it now, so Bright ends.
+        if override == .bright && naturalFraction() < 0.5 {
+            Settings.pausedUntil = nil
+            previewUntil = nil
+        } else if colourFraction() > 0.05 || previewing {
             previewFraction = 0
             previewUntil = Date().addingTimeInterval(6)
         }

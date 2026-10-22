@@ -194,7 +194,7 @@ struct SoftSlider: View {
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+            .highPriorityGesture(DragGesture(minimumDistance: 0).onChanged { drag in
                 let f = min(max((drag.location.x - knob / 2) / (g.size.width - knob), 0), 1)
                 let stepped = ((range.lowerBound + Double(f) * span) / step).rounded() * step
                 if stepped != value { value = stepped }
@@ -411,26 +411,20 @@ struct EveningCard: View {
                 Spacer()
                 Text(verbatim: "\(Int(p))% blue light").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             }
-            HStack(spacing: 6) {
-                Chip(title: "Max sleep", detail: "0% blue", selected: p <= 2, recommended: true) { app.setEveningBlue(0) }
-                Chip(title: "Balanced", detail: "35% blue", selected: abs(p - 35) <= 2) { app.setEveningBlue(35) }
-                Chip(title: "Natural", detail: "75% blue", selected: p >= 73) { app.setEveningBlue(75) }
+            SoftSlider(value: Binding(get: { blue }, set: { app.setEveningBlue($0, dragging: true) }),
+                       range: Colour.eveningBlueRange, step: 5)
+            HStack {
+                Button("Max sleep ★") { app.setEveningBlue(0) }
+                Spacer()
+                Button("Balanced") { app.setEveningBlue(35) }
+                Spacer()
+                Button("Natural") { app.setEveningBlue(75) }
             }
-            if compact {
-                if let status {
-                    Label(status.1, systemImage: status.0).font(.system(size: 12)).foregroundStyle(.secondary)
-                }
-            } else {
-            VStack(spacing: 3) {
-                SoftSlider(value: Binding(get: { blue }, set: { app.setEveningBlue($0, dragging: true) }),
-                           range: Colour.eveningBlueRange, step: 5)
-                HStack {
-                    Text("Max sleep")
-                    Spacer()
-                    Text("Natural")
-                }
-                .font(.system(size: 9, weight: .medium)).foregroundStyle(.tertiary)
+            .buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+            if compact, let status {
+                Label(status.1, systemImage: status.0).font(.system(size: 12)).foregroundStyle(.secondary)
             }
+            if !compact {
             Text(advice).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
