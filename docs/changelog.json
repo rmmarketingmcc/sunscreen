@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.11",
+    "date": "2026-10-22",
+    "notes": [
+      "Updates always finish: if the app can't quit by itself after updating, it quits hard so the new version starts"
+    ]
+  },
+  {
     "version": "1.10",
     "date": "2026-10-22",
     "notes": [

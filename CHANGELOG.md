@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.11 (2026-10-22)
+- Updates always finish: if the app can't quit by itself after updating, it quits hard so the new version starts
+
 ## 1.10 (2026-10-22)
 - Evening colour is one slider from Max sleep to Natural, sliders work again when the panel scrolls, and picking a colour in the evening ends Bright so it sticks
 
