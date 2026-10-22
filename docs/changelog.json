@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.14",
+    "date": "2026-10-22",
+    "notes": [
+      "The whole panel can always be scrolled into view, and picking a colour just saves it instead of flashing a preview and switching back"
+    ]
+  },
+  {
     "version": "1.13",
     "date": "2026-10-22",
     "notes": [

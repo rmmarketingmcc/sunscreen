@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.14 (2026-10-22)
+- The whole panel can always be scrolled into view, and picking a colour just saves it instead of flashing a preview and switching back
+
 ## 1.13 (2026-10-22)
 - The % blue light and every other value in the panel update live while you drag or click; cleaner evening slider
 
