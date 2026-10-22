@@ -67,7 +67,7 @@ struct PanelView: View {
         } else {
             // Never taller than the screen: the top used to get cut off. Scrolls only when needed.
             let limit = app.panelMaxHeight
-            ScrollView(contentHeight > limit ? .vertical : []) {
+            ScrollView(.vertical) {
                 content.background(GeometryReader { g in Color.clear.preference(key: PanelHeight.self, value: g.size.height) })
             }
             .scrollIndicators(contentHeight > limit ? .automatic : .hidden)
@@ -443,6 +443,10 @@ struct EveningCard: View {
                 Button { app.setEveningBlue(75) } label: { Label("Natural", systemImage: "sun.max") }
             }
             .buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+            if !app.editingEvening && app.override != .dark {
+                Label("Applies this evening. Tap Dark to see it now.", systemImage: "clock")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
             if compact, let status {
                 Label(status.1, systemImage: status.0).font(.system(size: 12)).foregroundStyle(.secondary)
             } else if !compact {
@@ -641,6 +645,10 @@ struct DaytimeCard: View {
                 Chip(title: "Daylight", selected: k == 6500, recommended: true, style: Palette.day) { app.setDayKelvin(6500) }
                 Chip(title: "Soft", selected: k == 5500, style: Palette.day) { app.setDayKelvin(5500) }
                 Chip(title: "Warm", selected: k == 4500, style: Palette.day) { app.setDayKelvin(4500) }
+            }
+            if app.editingEvening {
+                Label("Applies from the morning. Right now it's evening.", systemImage: "clock")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Text(k >= 6500
                  ? "Recommended: blue light by day keeps you alert and helps you fall asleep at night."

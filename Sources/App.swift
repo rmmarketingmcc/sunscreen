@@ -684,9 +684,6 @@ final class App: NSObject, NSApplicationDelegate {
         if override == .bright && naturalFraction() < 0.5 {
             Settings.pausedUntil = nil
             previewUntil = nil
-        } else if colourFraction() > 0.05 || previewing {
-            previewFraction = 0
-            previewUntil = Date().addingTimeInterval(6)
         }
         update(fade: dragging ? 0.35 : App.clickFadeSeconds, easeOut: true)
     }
@@ -694,10 +691,6 @@ final class App: NSObject, NSApplicationDelegate {
     /// Daytime colour; in the evening the daytime look shows for a few seconds so you see it.
     func setDayKelvin(_ k: Double) {
         Settings.dayKelvin = k
-        if colourFraction() < 0.95 || previewing {
-            previewFraction = 1
-            previewUntil = Date().addingTimeInterval(6)
-        }
         update(fade: App.clickFadeSeconds, easeOut: true)
     }
 
