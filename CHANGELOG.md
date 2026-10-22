@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.12 (2026-10-22)
+- Sliders are real macOS sliders now, so dragging always works
+
 ## 1.11 (2026-10-22)
 - Updates always finish: if the app can't quit by itself after updating, it quits hard so the new version starts
 

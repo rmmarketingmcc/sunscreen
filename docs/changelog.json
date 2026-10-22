@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.12",
+    "date": "2026-10-22",
+    "notes": [
+      "Sliders are real macOS sliders now, so dragging always works"
+    ]
+  },
+  {
     "version": "1.11",
     "date": "2026-10-22",
     "notes": [
