@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.13 (2026-10-22)
+- The % blue light and every other value in the panel update live while you drag or click; cleaner evening slider
+
 ## 1.12 (2026-10-22)
 - Sliders are real macOS sliders now, so dragging always works
 

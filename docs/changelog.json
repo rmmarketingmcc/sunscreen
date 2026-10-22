@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.13",
+    "date": "2026-10-22",
+    "notes": [
+      "The % blue light and every other value in the panel update live while you drag or click; cleaner evening slider"
+    ]
+  },
+  {
     "version": "1.12",
     "date": "2026-10-22",
     "notes": [
