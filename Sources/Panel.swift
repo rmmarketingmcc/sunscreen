@@ -67,7 +67,7 @@ struct PanelView: View {
         } else {
             // Never taller than the screen: the top used to get cut off. Scrolls only when needed.
             let limit = app.panelMaxHeight
-            ScrollView(.vertical) {
+            ScrollView(contentHeight > limit ? .vertical : []) {
                 content.background(GeometryReader { g in Color.clear.preference(key: PanelHeight.self, value: g.size.height) })
             }
             .scrollIndicators(contentHeight > limit ? .automatic : .hidden)
@@ -179,8 +179,16 @@ struct SoftSlider: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let step: Double
+    static var drawn = false   // true only while rendering --snapshot images
 
     var body: some View {
+        if SoftSlider.drawn { drawnSlider } else {
+            // Real macOS slider: always drags reliably, also inside the scrolling panel.
+            Slider(value: $value, in: range, step: step).tint(.orange).controlSize(.small)
+        }
+    }
+
+    private var drawnSlider: some View {
         GeometryReader { g in
             let knob: CGFloat = 16
             let span = range.upperBound - range.lowerBound

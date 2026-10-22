@@ -165,6 +165,7 @@ final class App: NSObject, NSApplicationDelegate {
             }
             if args.contains("--whats-new") { whatsNew = Array(Changelog.load().prefix(1)) }
             renderingSnapshot = true
+            SoftSlider.drawn = true
             Task { @MainActor in self.renderSnapshot(to: path); exit(0) }
             return
         }
