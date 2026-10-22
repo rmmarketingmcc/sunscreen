@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.10",
+    "date": "2026-10-22",
+    "notes": [
+      "Evening colour is one slider from Max sleep to Natural, sliders work again when the panel scrolls, and picking a colour in the evening ends Bright so it sticks"
+    ]
+  },
+  {
     "version": "1.9",
     "date": "2026-10-21",
     "notes": [

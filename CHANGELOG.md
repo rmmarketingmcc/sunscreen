@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.10 (2026-10-22)
+- Evening colour is one slider from Max sleep to Natural, sliders work again when the panel scrolls, and picking a colour in the evening ends Bright so it sticks
+
 ## 1.9 (2026-10-21)
 - Own timing without the 3-hour limit: push the evening past midnight or the morning as late as you like, and hold − or + to move fast
 
