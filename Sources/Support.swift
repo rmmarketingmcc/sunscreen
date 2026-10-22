@@ -114,6 +114,8 @@ enum Updater {
                     relaunch.arguments = ["-c", "sleep 3; /usr/bin/open \"$0\"", installed.path]
                     try? relaunch.run()
                     NSApp.terminate(nil)
+                    // If quitting gets held up (open panel, busy run loop), quit hard so the new version can start.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { exit(0) }
                 }
             } catch {
                 Reporter.log("update failed: \(error.localizedDescription)")
