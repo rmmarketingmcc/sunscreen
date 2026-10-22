@@ -100,6 +100,7 @@ struct PanelView: View {
         .padding(14)
         .frame(width: 340)
         .fontDesign(.rounded)
+        .environmentObject(store)
     }
 }
 
@@ -232,6 +233,7 @@ struct SoftSwitch: View {
 // MARK: - Cards
 
 struct HeaderView: View {
+    @EnvironmentObject private var store: Store
     let s: Snapshot
     let app: App
 
@@ -298,6 +300,7 @@ struct HeaderView: View {
 }
 
 struct ProblemCard: View {
+    @EnvironmentObject private var store: Store
     let problem: Problem
     let app: App
 
@@ -325,6 +328,7 @@ struct ProblemCard: View {
 }
 
 struct UpdateCard: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
@@ -352,6 +356,7 @@ struct UpdateCard: View {
 }
 
 struct TodayCard: View {
+    @EnvironmentObject private var store: Store
     let s: Snapshot
 
     private var nextLine: (String, String) { Fmt.nextLine(s) }
@@ -394,6 +399,7 @@ struct TodayCard: View {
 }
 
 struct EveningCard: View {
+    @EnvironmentObject private var store: Store
     let app: App
     var compact = false
     var status: (String, String)? = nil
@@ -411,29 +417,36 @@ struct EveningCard: View {
         return "Natural: colours look almost normal, but most of the blue light gets through."
     }
 
+    private var name: String {
+        let p = blue.rounded()
+        if p <= 0 { return "Max sleep" }
+        if p <= 20 { return "Very warm" }
+        if p <= 45 { return "Balanced" }
+        return "Natural"
+    }
+
     var body: some View {
         let p = blue.rounded()
         Card {
-            HStack {
+            HStack(alignment: .firstTextBaseline) {
                 Text("Evening colour").font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text(verbatim: "\(Int(p))% blue light").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                Text(verbatim: "\(Int(p))% blue").font(.system(size: 13, weight: .semibold)).monospacedDigit()
+                    .foregroundStyle(Palette.warm)
+                Text(verbatim: "· \(name)").font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
             }
             SoftSlider(value: Binding(get: { blue }, set: { app.setEveningBlue($0, dragging: true) }),
                        range: Colour.eveningBlueRange, step: 5)
             HStack {
-                Button("Max sleep ★") { app.setEveningBlue(0) }
+                Button { app.setEveningBlue(0) } label: { Label("Max sleep", systemImage: "moon.zzz.fill") }
                 Spacer()
-                Button("Balanced") { app.setEveningBlue(35) }
-                Spacer()
-                Button("Natural") { app.setEveningBlue(75) }
+                Button { app.setEveningBlue(75) } label: { Label("Natural", systemImage: "sun.max") }
             }
             .buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             if compact, let status {
                 Label(status.1, systemImage: status.0).font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            if !compact {
-            Text(advice).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            } else if !compact {
+                Text(advice).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -441,6 +454,7 @@ struct EveningCard: View {
 
 /// Own timing: start the evening (and the morning) earlier or later than the sun, in 15-minute steps.
 struct TimingCard: View {
+    @EnvironmentObject private var store: Store
     let s: Snapshot
     let app: App
 
@@ -528,6 +542,7 @@ extension View {
 
 /// Folds the panel open (all settings) or closed (just the essentials).
 struct MoreButton: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
@@ -548,6 +563,7 @@ struct MoreButton: View {
 }
 
 struct WhatsNewCard: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
@@ -577,6 +593,7 @@ struct WhatsNewCard: View {
 }
 
 struct BrightnessCard: View {
+    @EnvironmentObject private var store: Store
     let s: Snapshot
     let app: App
 
@@ -613,6 +630,7 @@ struct BrightnessCard: View {
 }
 
 struct DaytimeCard: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
@@ -634,6 +652,7 @@ struct DaytimeCard: View {
 
 /// The big switch: follow the sun, or force bright / dark right now.
 struct ModeCard: View {
+    @EnvironmentObject private var store: Store
     let s: Snapshot
     let app: App
 
@@ -714,6 +733,7 @@ struct ToggleRow: View {
 }
 
 struct OptionsCard: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
@@ -725,6 +745,7 @@ struct OptionsCard: View {
 }
 
 struct FooterView: View {
+    @EnvironmentObject private var store: Store
     let app: App
 
     var body: some View {
