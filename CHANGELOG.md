@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.15 (2026-10-29)
+- New "Share Sunscreen" link at the bottom of the panel copies the website link, ready to paste to a friend
+
 ## 1.14 (2026-10-22)
 - The whole panel can always be scrolled into view, and picking a colour just saves it instead of flashing a preview and switching back
 

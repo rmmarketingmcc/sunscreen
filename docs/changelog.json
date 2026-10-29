@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.15",
+    "date": "2026-10-29",
+    "notes": [
+      "New \"Share Sunscreen\" link at the bottom of the panel copies the website link, ready to paste to a friend"
+    ]
+  },
+  {
     "version": "1.14",
     "date": "2026-10-22",
     "notes": [
