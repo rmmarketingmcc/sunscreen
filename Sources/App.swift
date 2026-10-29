@@ -814,6 +814,7 @@ final class App: NSObject, NSApplicationDelegate {
 
     func checkForUpdates(manual: Bool = false, thenInstall: Bool = false) {
         lastUpdateCheck = Date()
+        Updater.checkInOncePerDay()
         Updater.check { [weak self] release in
             guard let self else { return }
             self.update = release

@@ -54,6 +54,11 @@ enum Settings {
         get { defaults.string(forKey: "lastSeenVersion") }
         set { defaults.set(newValue, forKey: "lastSeenVersion") }
     }
+    /// Local day ("2026-10-29") the anonymous daily check-in last went out (Updater.checkInOncePerDay).
+    static var lastCheckInDay: String? {
+        get { defaults.string(forKey: "lastCheckInDay") }
+        set { defaults.set(newValue, forKey: "lastCheckInDay") }
+    }
     /// Normal colours while a photo/video/design app is in front.
     static var pauseInCreativeApps: Bool {
         get { defaults.object(forKey: "pauseInCreativeApps") != nil ? defaults.bool(forKey: "pauseInCreativeApps") : true }

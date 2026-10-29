@@ -90,6 +90,31 @@ enum Updater {
         }.resume()
     }
 
+    /// Anonymous "a Mac is running Sunscreen today": fetches one tiny file once per local day. Nothing
+    /// is sent (no ID, settings or location); GitHub's download counter for that file is all that
+    /// changes, so the daily increase is roughly the number of Macs using Sunscreen that day.
+    /// The file sits on the "ping" release, a pre-release that updates and install.sh never see.
+    static let checkInURL = URL(string: "https://github.com/\(repo)/releases/download/ping/ping.txt")!
+    private static var checkingIn = false
+
+    static func checkInOncePerDay() {
+        let d = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        let today = String(format: "%04d-%02d-%02d", d.year ?? 0, d.month ?? 0, d.day ?? 0)
+        guard Settings.lastCheckInDay != today, !checkingIn else { return }
+        checkingIn = true
+        var req = URLRequest(url: checkInURL)
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        let session = URLSession(configuration: .ephemeral)   // no cookies, nothing kept
+        session.dataTask(with: req) { _, response, _ in
+            let ok = (response as? HTTPURLResponse)?.statusCode == 200
+            DispatchQueue.main.async {
+                checkingIn = false
+                if ok { Settings.lastCheckInDay = today }
+            }
+        }.resume()
+        session.finishTasksAndInvalidate()
+    }
+
     /// Downloads the release, swaps it in for the running app and relaunches. Calls `failed` on main on error.
     static func install(_ r: Release, failed: @escaping (String) -> Void) {
         URLSession.shared.downloadTask(with: r.zipURL) { tmp, _, error in
