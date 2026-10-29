@@ -23,7 +23,7 @@ if git rev-parse "v$VERSION" >/dev/null 2>&1; then echo "v$VERSION already exist
 # Automatic notes: the subject line of every commit since the last release (commit subjects are
 # written for users), minus release/guide/housekeeping commits.
 if [[ -z "$NOTES" ]]; then
-  PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+  PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)  # version tags only, never "ping"
   NOTES=$(git log --no-merges --pretty='%s' ${PREV:+$PREV..}HEAD | grep -vE '^(Release |Guide:|Changelog|Housekeeping)' || true)
   [[ -n "$NOTES" ]] || { echo "No changes since $PREV, nothing to release"; exit 1; }
 fi
