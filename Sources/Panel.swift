@@ -758,6 +758,11 @@ struct FooterView: View {
 
     var body: some View {
         HStack(spacing: 7) {
+            Button { app.copyShareLink() } label: {
+                Text(app.shareLinkCopied ? "Link copied" : "Share Sunscreen")
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary)
+            .help("Copies \(Updater.website.absoluteString) so you can send it to a friend")
             Spacer()
             Button("Report a problem") { app.report(nil) }.buttonStyle(.plain).foregroundStyle(.secondary)
             Text("·").foregroundStyle(.tertiary)

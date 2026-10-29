@@ -840,6 +840,20 @@ final class App: NSObject, NSApplicationDelegate {
 
     func openWebsite() { NSWorkspace.shared.open(Updater.website) }
 
+    private(set) var shareLinkCopied = false
+
+    /// Puts the website link on the clipboard so it can be pasted straight into a message.
+    func copyShareLink() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(Updater.website.absoluteString, forType: .string)
+        shareLinkCopied = true
+        store.refresh()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.shareLinkCopied = false
+            self?.store.refresh()
+        }
+    }
+
     private func flash(_ text: String) {
         updateStatus = text
         store.refresh()
