@@ -1,5 +1,12 @@
 [
   {
+    "version": "1.17",
+    "date": "2026-11-01",
+    "notes": [
+      "Updating in the evening no longer leaves Sunscreen frozen with normal colours: it quits, updates and comes back warm within a few seconds"
+    ]
+  },
+  {
     "version": "1.16",
     "date": "2026-11-01",
     "notes": [

@@ -2,6 +2,9 @@
 
 Every Sunscreen release. The app shows the newest entry after it updates itself.
 
+## 1.17 (2026-11-01)
+- Updating in the evening no longer leaves Sunscreen frozen with normal colours: it quits, updates and comes back warm within a few seconds
+
 ## 1.16 (2026-11-01)
 - A screen that briefly refused the warm colour (for example right after a macOS update) now gets it back by itself, instead of staying on a weak tint that lets most blue light through
 - Sunscreen checks in once a day without sending anything about you, so I can see roughly how many people use it
