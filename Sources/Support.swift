@@ -140,7 +140,8 @@ enum Updater {
                     try? relaunch.run()
                     NSApp.terminate(nil)
                     // If quitting gets held up (open panel, busy run loop), quit hard so the new version can start.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { exit(0) }
+                    // Off the main queue, which is exactly what's stuck when quitting hangs.
+                    DispatchQueue.global().asyncAfter(deadline: .now() + 2.5) { exit(0) }
                 }
             } catch {
                 Reporter.log("update failed: \(error.localizedDescription)")

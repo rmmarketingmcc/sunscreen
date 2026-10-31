@@ -219,7 +219,10 @@ final class App: NSObject, NSApplicationDelegate {
               !shown.colour.isNeutral || shown.dims.values.contains(where: { $0 < 0.999 }) else { return .terminateNow }
         transition(to: Look(colour: .neutral, dims: [:], levels: shown.levels), duration: 1.2)
         quitting = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) { NSApp.reply(toApplicationShouldTerminate: true) }
+        // A run loop timer, not DispatchQueue.main: when quitting starts from a main-queue block (the
+        // updater does), that queue is stuck until the reply, so the reply would never come.
+        let done = Timer(timeInterval: 1.3, repeats: false) { _ in NSApp.reply(toApplicationShouldTerminate: true) }
+        RunLoop.main.add(done, forMode: .common)
         return .terminateLater
     }
 
