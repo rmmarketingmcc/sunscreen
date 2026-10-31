@@ -476,7 +476,13 @@ final class App: NSObject, NSApplicationDelegate {
 
     // Runs every 2 s: macOS resets gamma on wake/replug, the filter re-checks it each tick
     // (and only writes when something actually changed).
-    @objc private func tick() { update() }
+    @objc private func tick() {
+        if filter.retryRejected(screens.filter(\.overlay).map(\.id)) {
+            Reporter.log("colour curve works again, leaving the overlay")
+            rescanScreens()
+        }
+        update()
+    }
 
     /// Works out what the screens should look like now and glides there.
     private func update(fade duration: Double = App.fadeSeconds, easeOut: Bool = false) {

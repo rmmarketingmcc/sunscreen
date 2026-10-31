@@ -17,6 +17,7 @@ final class ColourFilter {
     private var foreignWrites: [CGDirectDisplayID: [Date]] = [:]
     private var backoffUntil: [CGDirectDisplayID: Date] = [:]
     private(set) var rejected: Set<CGDirectDisplayID> = []   // gamma calls fail here: use an overlay
+    private var rejections: [CGDirectDisplayID: Int] = [:]
     var onConflict: (() -> Void)?
 
     var inConflict: Bool { backoffUntil.values.contains { $0 > Date() } }
@@ -30,7 +31,7 @@ final class ColourFilter {
                 if written[id] != nil { restore(id) }
                 continue
             }
-            guard let original = original(for: id) else { rejected.insert(id); continue }
+            guard let original = original(for: id) else { reject(id); continue }
             let want = scaled(original, colour.r * dim, colour.g * dim, colour.b * dim)
             if let last = written[id], let current = read(id) {
                 if close(current, last) {
@@ -48,12 +49,30 @@ final class ColourFilter {
                     }
                 }
             }
-            if write(id, want) { written[id] = want } else { rejected.insert(id) }
+            if write(id, want) { written[id] = want } else { reject(id) }
         }
         for id in Array(originals.keys) where !displays.contains(id) {
             originals[id] = nil
             written[id] = nil
         }
+    }
+
+    /// A failed curve call is often just macOS still setting the screen up (after login, an update
+    /// or turning on mirroring), and the overlay lets most blue through. So keep trying quietly with
+    /// the screen's own curve (no visible change) and report the screens that work again. A screen
+    /// that keeps falling back stays on the overlay, so it can't flicker between the two.
+    func retryRejected(_ displays: [CGDirectDisplayID]) -> Bool {
+        var recovered = false
+        for id in displays where rejected.contains(id) && (rejections[id] ?? 0) < 3 {
+            guard let original = original(for: id), write(id, original) else { continue }
+            rejected.remove(id)
+            recovered = true
+        }
+        return recovered
+    }
+
+    private func reject(_ id: CGDirectDisplayID) {
+        if rejected.insert(id).inserted { rejections[id, default: 0] += 1 }
     }
 
     func restoreAll() {
