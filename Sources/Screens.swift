@@ -14,7 +14,6 @@ struct Screen: Identifiable, Equatable {
     let isBuiltin: Bool
     let control: Control
     let overlay: Bool       // colour drawn by an overlay window (gamma doesn't reach this picture)
-    let mirrored: Bool      // part of a mirror set: one picture on several screens, scaled by the GPU's scaler
 
     var symbol: String { isBuiltin ? "laptopcomputer" : "display" }
 }
@@ -43,13 +42,6 @@ enum Screens {
 
     /// Screens whose picture is captured or streamed (Sidecar, AirPlay, DisplayLink...): the
     /// gamma curve never reaches them, so the colour has to be drawn on top.
-    /// Mirrored screens share one picture that macOS scales and colour-converts in hardware for
-    /// every frame. Giving them different curves or a full-screen tint window on top loads that
-    /// scaler further, and on an M5 Pro it has crashed the Mac (AppleM2ScalerCSCDriver panic).
-    static func isMirrored(_ id: CGDirectDisplayID) -> Bool {
-        CGDisplayIsInMirrorSet(id) != 0
-    }
-
     static func looksStreamed(_ name: String) -> Bool {
         let n = name.lowercased()
         return ["sidecar", "airplay", "displaylink", "luna display", "duet"].contains { n.contains($0) }

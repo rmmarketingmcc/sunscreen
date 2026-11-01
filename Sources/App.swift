@@ -101,14 +101,6 @@ final class App: NSObject, NSApplicationDelegate {
                         dims: dims, levels: levels)
         }
 
-        /// Too close to see as a jump: the sun's drift between two ticks.
-        func isNear(_ o: Look) -> Bool {
-            abs(colour.r - o.colour.r) < 0.01 && abs(colour.g - o.colour.g) < 0.01 && abs(colour.b - o.colour.b) < 0.01
-                && Set(dims.keys).union(o.dims.keys).allSatisfy { abs((dims[$0] ?? 1) - (o.dims[$0] ?? 1)) < 0.01 }
-                && Set(levels.keys) == Set(o.levels.keys)
-                && levels.allSatisfy { abs($0.value - (o.levels[$0.key] ?? -100)) < 1.5 }
-        }
-
         func matches(_ o: Look) -> Bool {
             abs(colour.r - o.colour.r) < 0.002 && abs(colour.g - o.colour.g) < 0.002 && abs(colour.b - o.colour.b) < 0.002
                 && Set(dims.keys).union(o.dims.keys).allSatisfy { abs((dims[$0] ?? 1) - (o.dims[$0] ?? 1)) < 0.002 }
@@ -335,13 +327,11 @@ final class App: NSObject, NSApplicationDelegate {
             let control: Screen.Control = builtin
                 ? (BuiltinBrightness.available ? .builtin : .software)
                 : (ddcRefs[id] != nil && !ddcBroken.contains(key) ? .hardware : .software)
-            let mirrored = Screens.isMirrored(id)
-            // Never a tint window on a mirrored screen: it would be redrawn through the scaler every frame.
-            let overlay = !builtin && !mirrored && (overlayKeys.contains(key) || filter.rejected.contains(id) || Screens.looksStreamed(name))
-            return Screen(id: id, key: key, name: name, isBuiltin: builtin, control: control, overlay: overlay, mirrored: mirrored)
+            let overlay = !builtin && (overlayKeys.contains(key) || filter.rejected.contains(id) || Screens.looksStreamed(name))
+            return Screen(id: id, key: key, name: name, isBuiltin: builtin, control: control, overlay: overlay)
         }
         if screens != previous {
-            Reporter.log("screens: " + screens.map { "\($0.name) [\($0.key)] \($0.control)\($0.overlay ? " overlay" : "")\($0.mirrored ? " mirrored" : "")" }
+            Reporter.log("screens: " + screens.map { "\($0.name) [\($0.key)] \($0.control)\($0.overlay ? " overlay" : "")" }
                 .joined(separator: "; "))
         }
         for s in screens where s.control == .hardware && hardware[s.key]?.firstReadDone != true {
@@ -530,14 +520,11 @@ final class App: NSObject, NSApplicationDelegate {
         var dims: [CGDirectDisplayID: Double] = [:]
         var levels: [String: Double] = [:]
         for s in screens {
-            // Mirrored screens all get the same curve, so no software dimming on just one of them.
-            if s.control == .software && !s.isBuiltin && !s.mirrored { dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100) }
+            if s.control == .software && !s.isBuiltin { dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100) }
             if s.control == .hardware, let level = hardwareLevel(s, bf) { levels[s.key] = Double(level) }
         }
         return Look(colour: Colour.at(fraction: colourFraction()), dims: dims, levels: levels)
     }
-
-    private var mirroring: Bool { screens.contains(where: \.mirrored) }
 
     /// Every change glides (colour, dimming and monitor brightness together), never jumps.
     private func transition(to target: Look, duration: Double, easeOut: Bool = false) {
@@ -551,20 +538,13 @@ final class App: NSObject, NSApplicationDelegate {
             show(target)
             return
         }
-        // Mirrored: the sun's slow drift (a new target every 2 s tick) is too small to see, so it is
-        // set in one write instead of a fresh 1.6 s fade every tick.
-        if mirroring && fadeTimer == nil && duration == App.fadeSeconds && current.isNear(target) {
-            show(target)
-            return
-        }
         fadeFrom = current
         fadeTarget = target
         fadeStart = Date()
         fadeDuration = duration
         fadeEaseOut = easeOut
         if fadeTimer == nil {
-            // Mirrored screens: 10 curve writes a second instead of 40, still a smooth glide.
-            let timer = Timer(timeInterval: mirroring ? 1.0 / 10 : 1.0 / 40, target: self, selector: #selector(fadeStep), userInfo: nil, repeats: true)
+            let timer = Timer(timeInterval: 1.0 / 40, target: self, selector: #selector(fadeStep), userInfo: nil, repeats: true)
             RunLoop.main.add(timer, forMode: .common)   // keeps fading while a slider is being dragged
             fadeTimer = timer
         }
