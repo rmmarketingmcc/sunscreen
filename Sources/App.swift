@@ -530,14 +530,9 @@ final class App: NSObject, NSApplicationDelegate {
         var dims: [CGDirectDisplayID: Double] = [:]
         var levels: [String: Double] = [:]
         for s in screens {
-            if s.control == .software && !s.isBuiltin { dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100) }
+            // Mirrored screens all get the same curve, so no software dimming on just one of them.
+            if s.control == .software && !s.isBuiltin && !s.mirrored { dims[s.id] = max(0.2, Double(brightnessTarget(s, bf)) / 100) }
             if s.control == .hardware, let level = hardwareLevel(s, bf) { levels[s.key] = Double(level) }
-        }
-        // Mirrored screens show one picture, so they all get the same curve: the darkest dimming
-        // any of them asks for, instead of a different curve per screen.
-        let mirrored = screens.filter(\.mirrored)
-        if let shared = mirrored.compactMap({ dims[$0.id] }).min() {
-            for s in mirrored { dims[s.id] = shared }
         }
         return Look(colour: Colour.at(fraction: colourFraction()), dims: dims, levels: levels)
     }
