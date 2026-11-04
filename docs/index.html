@@ -258,6 +258,25 @@
     .panels { gap: 10px; }
     h2 { font-size: 23px; }
   }
+
+  /* Try a whole day: the app's own sun and colour maths, on a sample screen */
+  .daywrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px; align-items: start; }
+  .screen.live .tint { position: absolute; inset: 0; mix-blend-mode: multiply; pointer-events: none; transition: background .25s; }
+  .screen.live .dim { position: absolute; inset: 0; background: #000; pointer-events: none; transition: opacity .25s; }
+  .dayctl { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); display: grid; gap: 10px; }
+  .readout { display: flex; align-items: baseline; gap: 10px; }
+  .readout b { font: 700 30px ui-rounded, "SF Pro Rounded", -apple-system, sans-serif; font-variant-numeric: tabular-nums; }
+  .readout span { color: var(--muted); }
+  .daystrip { position: relative; height: 36px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .daystrip canvas { width: 100%; height: 100%; display: block; }
+  .daystrip .marker { position: absolute; top: -2px; bottom: -2px; width: 3px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--card); }
+  .dayctl input[type=range] { width: 100%; accent-color: var(--orange); }
+  .times { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: -6px; }
+  .dayctl label { display: grid; gap: 4px; font-weight: 600; font-size: 14px; }
+  .dayctl label b { float: right; font-weight: 600; color: var(--muted); }
+  .dayctl select { font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .dayctl small { color: var(--muted); font-size: 13px; }
+  @media (max-width: 720px) { .daywrap { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -306,6 +325,42 @@
         </div>
         <figcaption>Evening: no blue light</figcaption>
       </figure>
+    </div>
+  </section>
+
+
+  <section id="day">
+    <h2>Try a whole day</h2>
+    <p class="lead">Drag through 24 hours, or play the day, and turn the evening up and down. It's the same sun and colour maths the app uses.</p>
+    <div class="daywrap">
+      <figure class="shot" style="margin:0">
+        <div class="screen live" aria-hidden="true">
+          <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+          <div class="pic"></div>
+          <div class="lines"><span></span><span></span><span></span><span style="width:70%"></span><span></span></div>
+          <div class="chips"><span style="background:#2f6fed"></span><span style="background:#34c759"></span><span style="background:#ff3b30"></span><span style="background:#af52de"></span></div>
+          <div class="tint" id="s-tint"></div><div class="dim" id="s-dim"></div>
+        </div>
+        <figcaption id="s-caption">Your screen at this time</figcaption>
+      </figure>
+      <div class="dayctl">
+        <div class="readout"><b id="s-time">21:00</b><span id="s-state">Evening</span></div>
+        <div class="daystrip"><canvas id="s-strip" width="960" height="36"></canvas><div class="marker" id="s-mark"></div></div>
+        <input type="range" id="s-hour" min="0" max="1435" step="5" value="1260" aria-label="Time of day">
+        <div class="times"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        <button type="button" class="btn primary" id="s-play">Play the day</button>
+        <label>Evening blue light <span><b id="s-bluev">0%</b></span><input type="range" id="s-blue" min="0" max="75" value="0"></label>
+        <small id="s-bluetip"></small>
+        <label>Evening brightness <span><b id="s-brightv">30%</b></span><input type="range" id="s-bright" min="10" max="100" value="30"></label>
+        <label>Place <select id="s-place">
+          <option value="55.68,12.57,Europe/Copenhagen">Copenhagen</option>
+          <option value="51.51,-0.13,Europe/London">London</option>
+          <option value="40.71,-74.01,America/New_York">New York</option>
+          <option value="-8.65,115.22,Asia/Makassar">Bali</option>
+          <option value="-33.87,151.21,Australia/Sydney">Sydney</option>
+        </select></label>
+        <small id="s-sun"></small>
+      </div>
     </div>
   </section>
 
@@ -622,6 +677,102 @@ Downloading Sunscreen...
       var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     }
   })();
+
+// Try a whole day: Sun.swift's elevation and fade (+3 deg to -6 deg) and Colour.swift's blackbody colour,
+// normalised to 6500K, on today's date in the chosen place.
+(() => {
+  const $ = (id) => document.getElementById(id);
+  if (!$("s-hour")) return;
+  const rad = Math.PI / 180;
+  function elevation(lat, lon, date) {
+    const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0;
+    const meanLong = (280.460 + 0.9856474 * n) % 360, g = ((357.528 + 0.9856003 * n) % 360) * rad;
+    const eclLong = (meanLong + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad, obliq = (23.439 - 0.0000004 * n) * rad;
+    const ra = Math.atan2(Math.cos(obliq) * Math.sin(eclLong), Math.cos(eclLong)), dec = Math.asin(Math.sin(obliq) * Math.sin(eclLong));
+    const gmst = (280.46061837 + 360.98564736629 * n) % 360, ha = (gmst + lon) * rad - ra;
+    return Math.asin(Math.sin(lat * rad) * Math.sin(dec) + Math.cos(lat * rad) * Math.cos(dec) * Math.cos(ha)) / rad;
+  }
+  const fraction = (e) => Math.min(1, Math.max(0, (e + 6) / 9));
+  function raw(k) {
+    const t = k / 100;
+    const r = t <= 66 ? 255 : 329.698727446 * Math.pow(t - 60, -0.1332047592);
+    const g = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+    const b = t >= 66 ? 255 : (t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307);
+    return [r, g, b].map((x) => Math.min(Math.max(x, 0), 255));
+  }
+  const REF = raw(6500);
+  const colour = (k) => raw(k).map((c, i) => Math.min(c / REF[i], 1));
+  function kelvinForBlue(percent) {
+    const refBlue = 138.5177312231 * Math.log(6500 / 100 - 10) - 305.0447927307, p = Math.min(Math.max(percent, 0), 100) / 100;
+    return 100 * (10 + Math.exp((p * refBlue + 305.0447927307) / 138.5177312231));
+  }
+  // the chosen place's local midnight today, in UTC
+  function midnight(tz) {
+    const now = new Date();
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit"})
+      .formatToParts(now).map((p) => [p.type, p.value]));
+    const guess = Date.UTC(+parts.year, +parts.month - 1, +parts.day);
+    const local = new Date(new Date(guess).toLocaleString("en-US", {timeZone: tz}));
+    const utc = new Date(new Date(guess).toLocaleString("en-US", {timeZone: "UTC"}));
+    return guess - (local - utc);
+  }
+  let place = [55.68, 12.57], tz = "Europe/Copenhagen", start = midnight(tz), anim = null;
+  const at = (min) => new Date(start + min * 60000);
+  const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${String(Math.round(min % 60)).padStart(2, "0")}`;
+  function look(min) {
+    const e = elevation(place[0], place[1], at(min)), f = fraction(e);
+    const night = kelvinForBlue(+$("s-blue").value), k = night + f * (6500 - night);
+    const nb = +$("s-bright").value, bright = nb + f * (100 - nb);
+    return {e, f, rgb: colour(k), bright, rising: elevation(place[0], place[1], at(min + 10)) > e};
+  }
+  function strip() {
+    const c = $("s-strip"), ctx = c.getContext("2d"), w = c.width / 144;
+    for (let i = 0; i < 144; i++) {
+      const L = look(i * 10), m = L.bright / 100;
+      ctx.fillStyle = `rgb(${L.rgb.map((x) => Math.round(255 * x * (0.25 + 0.75 * m))).join(",")})`;
+      ctx.fillRect(i * w, 0, w + 1, c.height);
+    }
+    let rise = null, set = null;
+    for (let m = 2; m <= 1440; m += 2) {
+      const a = elevation(place[0], place[1], at(m - 2)), b = elevation(place[0], place[1], at(m));
+      if (a < -0.833 && b >= -0.833 && rise === null) rise = m;
+      if (a >= -0.833 && b < -0.833 && set === null) set = m;
+    }
+    $("s-sun").textContent = rise !== null && set !== null ? `Today: sunrise ${hhmm(rise)}, sunset ${hhmm(set)}. The evening fades in from when the sun is 3° above the horizon until it is 6° below, and back in the morning.`
+      : "No sunrise or sunset here today.";
+  }
+  function show() {
+    const min = +$("s-hour").value, L = look(min);
+    $("s-tint").style.background = `rgb(${L.rgb.map((x) => Math.round(255 * x)).join(",")})`;
+    $("s-dim").style.opacity = ((1 - L.bright / 100) * 0.75).toFixed(3);
+    $("s-time").textContent = hhmm(min);
+    $("s-state").textContent = L.f >= 1 ? "Day: normal colours" : L.f <= 0 ? "Evening" : L.rising ? "Sunrise: fading back" : "Sunset: fading in";
+    const blue = Math.round(L.rgb[2] * 100);
+    $("s-caption").textContent = `${blue}% blue light, screen at ${Math.round(L.bright)}%`;
+    $("s-mark").style.left = `calc(${(min / 1440) * 100}% - 1px)`;
+    const p = +$("s-blue").value;
+    $("s-bluev").textContent = `${p}%`;
+    $("s-brightv").textContent = `${$("s-bright").value}%`;
+    $("s-bluetip").textContent = p <= 0 ? "Max sleep: no blue light at all, like blue-light glasses."
+      : p <= 20 ? "Very little blue light. Almost as good for sleep as Max sleep."
+      : p < 60 ? "Some blue light: warmer colours, a little less sleep-friendly." : "Natural: colours look almost normal, but most of the blue light gets through.";
+  }
+  $("s-hour").oninput = show;
+  $("s-blue").oninput = () => { strip(); show(); };
+  $("s-bright").oninput = () => { strip(); show(); };
+  $("s-place").onchange = (e) => { const v = e.target.value.split(","); place = [+v[0], +v[1]]; tz = v[2]; start = midnight(tz); strip(); show(); };
+  $("s-play").onclick = () => {
+    if (anim) { clearInterval(anim); anim = null; $("s-play").textContent = "Play the day"; return; }
+    $("s-play").textContent = "Stop";
+    anim = setInterval(() => {
+      const v = (+$("s-hour").value + 5) % 1440;
+      $("s-hour").value = v;
+      show();
+    }, 40);
+  };
+  strip();
+  show();
+})();
 </script>
 </body>
 </html>
